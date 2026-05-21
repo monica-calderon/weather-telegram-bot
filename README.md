@@ -2,7 +2,7 @@
 
 Bot meteorologico en Python que consulta AEMET OpenData y envia notificaciones por Telegram cuando detecta lluvia probable, viento fuerte, calor, frio/heladas o avisos oficiales de AEMET. Tambien puede enviar un resumen diario.
 
-El proyecto esta preparado para ejecutarse en local con `.env` y automaticamente con GitHub Actions.
+El proyecto esta preparado para ejecutarse en local con `.env`, como endpoint HTTP para cron-job.org y, si quieres mantenerlo, tambien con GitHub Actions.
 
 ## Que hace
 
@@ -11,7 +11,8 @@ El proyecto esta preparado para ejecutarse en local con `.env` y automaticamente
 - Aplica reglas configurables por variables de entorno.
 - Envia mensajes con Telegram Bot API.
 - Evita repetir alertas usando `.state/notified_alerts.json`.
-- Ejecuta dos workflows: alertas cada 30 minutos y resumen diario.
+- Expone endpoints HTTP protegidos para cron-job.org.
+- Mantiene workflows de GitHub Actions como opcion secundaria.
 
 ## Configuracion local
 
@@ -47,6 +48,7 @@ RAIN_PROB_THRESHOLD=70
 WIND_KMH_THRESHOLD=45
 HEAT_TEMP_THRESHOLD=35
 COLD_TEMP_THRESHOLD=0
+CRON_SECRET=un_token_largo_y_privado
 ```
 
 ## Crear bot de Telegram
@@ -96,6 +98,21 @@ Resumen diario:
 python -m src.main daily
 ```
 
+Servidor HTTP para cron-job.org:
+
+```bash
+python -m src.web_app
+```
+
+Endpoints:
+
+```text
+GET /cron/alerts?token=CRON_SECRET
+GET /cron/daily?token=CRON_SECRET
+```
+
+Tambien puedes enviar el token en el header `X-Cron-Secret`.
+
 Tests:
 
 ```bash
@@ -125,11 +142,58 @@ Configura estas `Variables` del repositorio:
 
 Hay tres workflows:
 
-- `Weather alerts`: cada 30 minutos y manual con `workflow_dispatch`.
-- `Weather daily summary`: envia resumen diario a las `09:00` y `19:00` segun `TIMEZONE`.
+- `Weather alerts`: ejecucion manual con `workflow_dispatch`.
+- `Weather daily summary`: ejecucion manual con `workflow_dispatch`.
 - `CI`: ejecuta los tests con `pytest` en cada push, pull request o manualmente.
 
-GitHub Actions usa UTC. El workflow diario se programa en las horas UTC posibles (`07:00`, `08:00`, `17:00` y `18:00`) y dentro del job comprueba la hora local con `TIMEZONE`. Asi mantiene las `09:00` y `19:00` aunque cambie el horario de invierno/verano.
+Las notificaciones programadas quedan delegadas a cron-job.org. Los workflows meteorologicos de GitHub Actions se mantienen solo para pruebas manuales.
+
+## cron-job.org
+
+cron-job.org no ejecuta tu codigo directamente: llama una URL publica. Por eso necesitas desplegar este proyecto en algun sitio que exponga HTTP, por ejemplo Render, Railway, Fly.io, PythonAnywhere o un VPS.
+
+Variables necesarias en el hosting:
+
+- `AEMET_API_KEY`
+- `TELEGRAM_BOT_TOKEN`
+- `TELEGRAM_CHAT_ID`
+- `MUNICIPIO_ID`
+- `MUNICIPIO_NOMBRE`
+- `TIMEZONE`
+- `RAIN_PROB_THRESHOLD`
+- `WIND_KMH_THRESHOLD`
+- `HEAT_TEMP_THRESHOLD`
+- `COLD_TEMP_THRESHOLD`
+- `AEMET_ALERT_AREA`
+- `CRON_SECRET`
+
+Comando de arranque:
+
+```bash
+python -m src.web_app
+```
+
+Si el proveedor usa `gunicorn`, puedes usar:
+
+```bash
+gunicorn src.web_app:app
+```
+
+El repositorio incluye `Procfile` con:
+
+```text
+web: gunicorn src.web_app:app
+```
+
+Configura en cron-job.org estos jobs:
+
+- Alertas: `https://TU_DOMINIO/cron/alerts?token=TU_CRON_SECRET`, cada 30 minutos.
+- Resumen 09:00: `https://TU_DOMINIO/cron/daily?token=TU_CRON_SECRET`, todos los dias a las 09:00.
+- Resumen 19:00: `https://TU_DOMINIO/cron/daily?token=TU_CRON_SECRET`, todos los dias a las 19:00.
+
+Usa la zona horaria `Europe/Madrid` en cron-job.org para que los horarios coincidan con Espana.
+
+No compartas `CRON_SECRET`. Si alguien conoce esa URL completa puede disparar el bot.
 
 ## Cambiar frecuencia y umbrales
 

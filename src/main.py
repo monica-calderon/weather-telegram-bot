@@ -28,49 +28,57 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         config = Config.from_env()
-        aemet = AemetClient(config.aemet_api_key)
-        telegram = TelegramClient(config.telegram_bot_token, config.telegram_chat_id)
-        forecast = aemet.get_municipality_forecast(config.municipio_id)
-        official_alerts = _safe_get_official_alerts(aemet, config.aemet_alert_area)
-        normalized = normalize_forecast(forecast, config.municipio_nombre)
-        normalized["official_alerts"] = normalize_official_alerts(official_alerts)
-
-        if args.mode == "daily":
-            message = build_daily_summary_message(
-                normalized,
-                config.municipio_nombre,
-                current_time=_current_time(config.timezone),
-            )
-            telegram.send_message(message)
-            LOGGER.info("Resumen diario enviado.")
-            return 0
-
-        alerts = build_weather_alerts(
-            normalized,
-            rain_prob_threshold=config.rain_prob_threshold,
-            wind_kmh_threshold=config.wind_kmh_threshold,
-            heat_temp_threshold=config.heat_temp_threshold,
-            cold_temp_threshold=config.cold_temp_threshold,
-        )
-        state = StateStore()
-        state.cleanup_old_entries(days=3)
-
-        sent = 0
-        for alert in alerts:
-            key = alert["dedupe_key"]
-            if state.has_been_notified(key):
-                LOGGER.info("Alerta ya notificada, se omite: %s", key)
-                continue
-            telegram.send_message(build_alert_message(alert, config.municipio_nombre))
-            state.mark_notified(key)
-            sent += 1
-            LOGGER.info("Alerta enviada: %s", key)
-
-        LOGGER.info("Alertas detectadas=%s, enviadas=%s", len(alerts), sent)
+        run_bot(args.mode, config)
         return 0
     except (ConfigError, AemetClientError, TelegramClientError) as exc:
         LOGGER.error("%s", exc)
         return 1
+
+
+def run_bot(mode: str, config: Config) -> dict[str, int | str]:
+    aemet = AemetClient(config.aemet_api_key)
+    telegram = TelegramClient(config.telegram_bot_token, config.telegram_chat_id)
+    forecast = aemet.get_municipality_forecast(config.municipio_id)
+    official_alerts = _safe_get_official_alerts(aemet, config.aemet_alert_area)
+    normalized = normalize_forecast(forecast, config.municipio_nombre)
+    normalized["official_alerts"] = normalize_official_alerts(official_alerts)
+
+    if mode == "daily":
+        message = build_daily_summary_message(
+            normalized,
+            config.municipio_nombre,
+            current_time=_current_time(config.timezone),
+        )
+        telegram.send_message(message)
+        LOGGER.info("Resumen diario enviado.")
+        return {"mode": "daily", "sent": 1}
+
+    if mode != "alerts":
+        raise ValueError(f"Modo no soportado: {mode}")
+
+    alerts = build_weather_alerts(
+        normalized,
+        rain_prob_threshold=config.rain_prob_threshold,
+        wind_kmh_threshold=config.wind_kmh_threshold,
+        heat_temp_threshold=config.heat_temp_threshold,
+        cold_temp_threshold=config.cold_temp_threshold,
+    )
+    state = StateStore()
+    state.cleanup_old_entries(days=3)
+
+    sent = 0
+    for alert in alerts:
+        key = alert["dedupe_key"]
+        if state.has_been_notified(key):
+            LOGGER.info("Alerta ya notificada, se omite: %s", key)
+            continue
+        telegram.send_message(build_alert_message(alert, config.municipio_nombre))
+        state.mark_notified(key)
+        sent += 1
+        LOGGER.info("Alerta enviada: %s", key)
+
+    LOGGER.info("Alertas detectadas=%s, enviadas=%s", len(alerts), sent)
+    return {"mode": "alerts", "detected": len(alerts), "sent": sent}
 
 
 def _safe_get_official_alerts(aemet: AemetClient, area: str) -> Any:

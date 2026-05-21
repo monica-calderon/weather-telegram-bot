@@ -35,6 +35,7 @@ class AemetClient:
         metadata = self._request_json(
             endpoint_url,
             headers={"api_key": self.api_key},
+            params={"api_key": self.api_key},
             error_context="AEMET metadata",
         )
         data_url = metadata.get("datos") if isinstance(metadata, dict) else None
@@ -54,9 +55,12 @@ class AemetClient:
         url: str,
         *,
         headers: dict[str, str] | None = None,
+        params: dict[str, str] | None = None,
         error_context: str,
     ) -> Any:
-        response = self._request(url, headers=headers, error_context=error_context)
+        response = self._request(
+            url, headers=headers, params=params, error_context=error_context
+        )
         try:
             return response.json()
         except ValueError as exc:
@@ -69,9 +73,12 @@ class AemetClient:
         url: str,
         *,
         headers: dict[str, str] | None = None,
+        params: dict[str, str] | None = None,
         error_context: str,
     ) -> Any:
-        response = self._request(url, headers=headers, error_context=error_context)
+        response = self._request(
+            url, headers=headers, params=params, error_context=error_context
+        )
         try:
             return response.json()
         except ValueError:
@@ -84,12 +91,15 @@ class AemetClient:
         url: str,
         *,
         headers: dict[str, str] | None = None,
+        params: dict[str, str] | None = None,
         error_context: str,
     ) -> requests.Response:
         last_error: requests.RequestException | None = None
         for attempt in range(3):
             try:
-                response = self.session.get(url, headers=headers, timeout=self.timeout)
+                response = self.session.get(
+                    url, headers=headers, params=params, timeout=self.timeout
+                )
                 if response.status_code in {429, 500, 502, 503, 504} and attempt < 2:
                     time.sleep(2**attempt)
                     continue
@@ -103,6 +113,11 @@ class AemetClient:
                 break
 
         detail = str(last_error) if last_error else "respuesta no disponible"
+        if "401" in detail:
+            detail += (
+                ". AEMET ha rechazado la API key; revisa AEMET_API_KEY en "
+                "GitHub Secrets y prueba que no tenga espacios ni comillas."
+            )
         if "429" in detail:
             detail += ". AEMET esta limitando temporalmente las peticiones; espera unos minutos."
         raise AemetClientError(f"Error consultando {error_context}: {detail}")

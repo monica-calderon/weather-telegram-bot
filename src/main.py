@@ -4,8 +4,10 @@ import argparse
 import io
 import logging
 import sys
+from datetime import datetime
 from typing import Any
 from xml.etree import ElementTree
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from zipfile import BadZipFile, ZipFile
 
 from src.aemet_client import AemetClient, AemetClientError
@@ -34,7 +36,11 @@ def main(argv: list[str] | None = None) -> int:
         normalized["official_alerts"] = normalize_official_alerts(official_alerts)
 
         if args.mode == "daily":
-            message = build_daily_summary_message(normalized, config.municipio_nombre)
+            message = build_daily_summary_message(
+                normalized,
+                config.municipio_nombre,
+                current_time=_current_time(config.timezone),
+            )
             telegram.send_message(message)
             LOGGER.info("Resumen diario enviado.")
             return 0
@@ -73,6 +79,15 @@ def _safe_get_official_alerts(aemet: AemetClient, area: str) -> Any:
     except AemetClientError as exc:
         LOGGER.warning("No se pudieron obtener avisos oficiales AEMET: %s", exc)
         return []
+
+
+def _current_time(timezone: str) -> str:
+    try:
+        tz = ZoneInfo(timezone)
+    except ZoneInfoNotFoundError:
+        LOGGER.warning("Timezone no valido '%s'. Se usara UTC.", timezone)
+        tz = ZoneInfo("UTC")
+    return datetime.now(tz).strftime("%H:%M")
 
 
 def normalize_forecast(forecast: Any, municipio_nombre: str) -> dict[str, Any]:

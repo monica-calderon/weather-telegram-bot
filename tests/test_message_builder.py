@@ -28,9 +28,10 @@ def test_build_daily_summary_message_contains_expected_values():
             "wind_kmh": 22,
         },
         "Alcala de Henares",
+        current_time="09:00",
     )
 
-    assert "<b>Resumen meteorológico diario</b>" in message
+    assert "☀️ <b>Resumen diario</b> 09:00" in message
     assert "Máxima: 31°C" in message
     assert "Mínima: 18°C" in message
     assert "Lluvia: 40%" in message

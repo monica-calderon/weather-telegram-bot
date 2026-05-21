@@ -28,14 +28,19 @@ def build_alert_message(alert: dict[str, str], municipio_nombre: str) -> str:
     )
 
 
-def build_daily_summary_message(summary: dict[str, Any], municipio_nombre: str) -> str:
+def build_daily_summary_message(
+    summary: dict[str, Any], municipio_nombre: str, current_time: str | None = None
+) -> str:
     max_temp = _format_value(summary.get("max_temp"), "°C")
     min_temp = _format_value(summary.get("min_temp"), "°C")
     rain_probability = _format_value(summary.get("rain_probability"), "%")
     wind_kmh = _format_value(summary.get("wind_kmh"), " km/h")
+    title = "☀️ <b>Resumen diario</b>"
+    if current_time:
+        title = f"{title} {html.escape(current_time)}"
     return "\n".join(
         [
-            "☀️ <b>Resumen meteorológico diario</b>",
+            title,
             "",
             f"📍 {html.escape(municipio_nombre)}",
             f"🌡️ Máxima: {html.escape(max_temp)}",

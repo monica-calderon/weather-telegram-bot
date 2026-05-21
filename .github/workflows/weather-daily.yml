@@ -1,0 +1,53 @@
+name: Weather daily summary
+
+on:
+  workflow_dispatch:
+  schedule:
+    # GitHub Actions usa UTC. Se programan las horas UTC posibles y se filtra
+    # dentro del job para enviar solo a las 09:00 y 19:00 en TIMEZONE.
+    - cron: "0 7,8,17,18 * * *"
+
+jobs:
+  daily:
+    runs-on: ubuntu-latest
+    env:
+      AEMET_API_KEY: ${{ secrets.AEMET_API_KEY }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      MUNICIPIO_ID: ${{ vars.MUNICIPIO_ID }}
+      MUNICIPIO_NOMBRE: ${{ vars.MUNICIPIO_NOMBRE }}
+      TIMEZONE: ${{ vars.TIMEZONE || 'Europe/Madrid' }}
+      RAIN_PROB_THRESHOLD: ${{ vars.RAIN_PROB_THRESHOLD || '70' }}
+      WIND_KMH_THRESHOLD: ${{ vars.WIND_KMH_THRESHOLD || '45' }}
+      HEAT_TEMP_THRESHOLD: ${{ vars.HEAT_TEMP_THRESHOLD || '35' }}
+      COLD_TEMP_THRESHOLD: ${{ vars.COLD_TEMP_THRESHOLD || '0' }}
+      AEMET_ALERT_AREA: ${{ vars.AEMET_ALERT_AREA || 'esp' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check local schedule
+        id: schedule_gate
+        shell: bash
+        run: |
+          local_hour="$(TZ="${TIMEZONE:-Europe/Madrid}" date +%H)"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" || "$local_hour" == "09" || "$local_hour" == "19" ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "Daily summary enabled for local hour $local_hour"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping daily summary for local hour $local_hour"
+          fi
+
+      - uses: actions/setup-python@v5
+        if: steps.schedule_gate.outputs.run == 'true'
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        if: steps.schedule_gate.outputs.run == 'true'
+        run: pip install -r requirements.txt
+
+      - name: Send daily summary
+        if: steps.schedule_gate.outputs.run == 'true'
+        run: python -m src.main daily

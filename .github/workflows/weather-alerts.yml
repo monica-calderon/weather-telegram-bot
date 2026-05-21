@@ -1,0 +1,43 @@
+name: Weather alerts
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/30 * * * *"
+
+jobs:
+  alerts:
+    runs-on: ubuntu-latest
+    env:
+      AEMET_API_KEY: ${{ secrets.AEMET_API_KEY }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      MUNICIPIO_ID: ${{ vars.MUNICIPIO_ID }}
+      MUNICIPIO_NOMBRE: ${{ vars.MUNICIPIO_NOMBRE }}
+      TIMEZONE: ${{ vars.TIMEZONE || 'Europe/Madrid' }}
+      RAIN_PROB_THRESHOLD: ${{ vars.RAIN_PROB_THRESHOLD || '70' }}
+      WIND_KMH_THRESHOLD: ${{ vars.WIND_KMH_THRESHOLD || '45' }}
+      HEAT_TEMP_THRESHOLD: ${{ vars.HEAT_TEMP_THRESHOLD || '35' }}
+      COLD_TEMP_THRESHOLD: ${{ vars.COLD_TEMP_THRESHOLD || '0' }}
+      AEMET_ALERT_AREA: ${{ vars.AEMET_ALERT_AREA || 'esp' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Restore notification state
+        uses: actions/cache@v4
+        with:
+          path: .state
+          key: weather-alert-state-${{ github.run_id }}
+          restore-keys: |
+            weather-alert-state-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run alert check
+        run: python -m src.main alerts

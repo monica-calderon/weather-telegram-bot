@@ -23,7 +23,6 @@ class Config:
     heat_temp_threshold: int = 35
     cold_temp_threshold: int = 0
     aemet_alert_area: str = "esp"
-    cron_secret: str | None = None
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -54,7 +53,6 @@ class Config:
             heat_temp_threshold=_int_env("HEAT_TEMP_THRESHOLD", 35),
             cold_temp_threshold=_int_env("COLD_TEMP_THRESHOLD", 0),
             aemet_alert_area=os.getenv("AEMET_ALERT_AREA", "esp"),
-            cron_secret=os.getenv("CRON_SECRET"),
         )
 
 

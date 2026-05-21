@@ -2,7 +2,7 @@
 
 Bot meteorologico en Python que consulta AEMET OpenData y envia notificaciones por Telegram cuando detecta lluvia probable, viento fuerte, calor, frio/heladas o avisos oficiales de AEMET. Tambien puede enviar un resumen diario.
 
-El proyecto esta preparado para ejecutarse en local con `.env`, como endpoint HTTP para cron-job.org y, si quieres mantenerlo, tambien con GitHub Actions.
+El proyecto esta preparado para ejecutarse en local con `.env` y en GitHub Actions. La programacion se delega a cron-job.org, que llama a la API de GitHub para lanzar los workflows.
 
 ## Que hace
 
@@ -11,8 +11,8 @@ El proyecto esta preparado para ejecutarse en local con `.env`, como endpoint HT
 - Aplica reglas configurables por variables de entorno.
 - Envia mensajes con Telegram Bot API.
 - Evita repetir alertas usando `.state/notified_alerts.json`.
-- Expone endpoints HTTP protegidos para cron-job.org.
-- Mantiene workflows de GitHub Actions como opcion secundaria.
+- Mantiene workflows de GitHub Actions para ejecucion manual o disparo por API.
+- Usa cron-job.org como reloj externo mas fiable que el scheduler nativo de GitHub.
 
 ## Configuracion local
 
@@ -48,7 +48,6 @@ RAIN_PROB_THRESHOLD=70
 WIND_KMH_THRESHOLD=45
 HEAT_TEMP_THRESHOLD=35
 COLD_TEMP_THRESHOLD=0
-CRON_SECRET=un_token_largo_y_privado
 ```
 
 ## Crear bot de Telegram
@@ -98,21 +97,6 @@ Resumen diario:
 python -m src.main daily
 ```
 
-Servidor HTTP para cron-job.org:
-
-```bash
-python -m src.web_app
-```
-
-Endpoints:
-
-```text
-GET /cron/alerts?token=CRON_SECRET
-GET /cron/daily?token=CRON_SECRET
-```
-
-Tambien puedes enviar el token en el header `X-Cron-Secret`.
-
 Tests:
 
 ```bash
@@ -142,65 +126,91 @@ Configura estas `Variables` del repositorio:
 
 Hay tres workflows:
 
-- `Weather alerts`: ejecucion manual con `workflow_dispatch`.
-- `Weather daily summary`: ejecucion manual con `workflow_dispatch`.
+- `Weather alerts`: ejecucion manual o por API con `workflow_dispatch`.
+- `Weather daily summary`: ejecucion manual o por API con `workflow_dispatch`.
 - `CI`: ejecuta los tests con `pytest` en cada push, pull request o manualmente.
 
-Las notificaciones programadas quedan delegadas a cron-job.org. Los workflows meteorologicos de GitHub Actions se mantienen solo para pruebas manuales.
+Las notificaciones programadas quedan delegadas a cron-job.org. GitHub Actions ejecuta el codigo cuando cron-job.org llama a la API de GitHub.
 
-## cron-job.org
+## cron-job.org + GitHub Actions
 
-cron-job.org no ejecuta tu codigo directamente: llama una URL publica. Por eso necesitas desplegar este proyecto en algun sitio que exponga HTTP, por ejemplo Render, Railway, Fly.io, PythonAnywhere o un VPS.
+cron-job.org no ejecuta Python directamente. En este proyecto se usa para llamar a GitHub y lanzar los workflows mediante `workflow_dispatch`.
 
-Variables necesarias en el hosting:
+### 1. Crear token de GitHub para cron-job.org
 
-- `AEMET_API_KEY`
-- `TELEGRAM_BOT_TOKEN`
-- `TELEGRAM_CHAT_ID`
-- `MUNICIPIO_ID`
-- `MUNICIPIO_NOMBRE`
-- `TIMEZONE`
-- `RAIN_PROB_THRESHOLD`
-- `WIND_KMH_THRESHOLD`
-- `HEAT_TEMP_THRESHOLD`
-- `COLD_TEMP_THRESHOLD`
-- `AEMET_ALERT_AREA`
-- `CRON_SECRET`
+En GitHub, crea un token para que cron-job.org pueda lanzar workflows:
 
-Comando de arranque:
+1. Ve a `GitHub` -> `Settings` -> `Developer settings`.
+2. Entra en `Personal access tokens` -> `Fine-grained tokens`.
+3. Crea un token nuevo.
+4. Repository access: selecciona solo `monica-calderon/weather-telegram-bot`.
+5. Repository permissions: concede `Actions: Read and write`.
+6. Copia el token. Solo se vera una vez.
 
-```bash
-python -m src.web_app
-```
+Guarda ese token solo en cron-job.org. No lo subas al repo ni lo pongas en `.env`.
 
-Si el proveedor usa `gunicorn`, puedes usar:
+### 2. Job de alertas cada 30 minutos
 
-```bash
-gunicorn src.web_app:app
-```
+En cron-job.org crea un job:
 
-El repositorio incluye `Procfile` con:
+- URL: `https://api.github.com/repos/monica-calderon/weather-telegram-bot/actions/workflows/weather-alerts.yml/dispatches`
+- Method: `POST`
+- Schedule: cada 30 minutos.
+- Timezone: `Europe/Madrid`
+- Expected status: `204`
+
+Headers:
 
 ```text
-web: gunicorn src.web_app:app
+Accept: application/vnd.github+json
+Authorization: Bearer TU_TOKEN_DE_GITHUB
+X-GitHub-Api-Version: 2022-11-28
+Content-Type: application/json
 ```
 
-Configura en cron-job.org estos jobs:
+Body:
 
-- Alertas: `https://TU_DOMINIO/cron/alerts?token=TU_CRON_SECRET`, cada 30 minutos.
-- Resumen 09:00: `https://TU_DOMINIO/cron/daily?token=TU_CRON_SECRET`, todos los dias a las 09:00.
-- Resumen 19:00: `https://TU_DOMINIO/cron/daily?token=TU_CRON_SECRET`, todos los dias a las 19:00.
+```json
+{"ref":"main"}
+```
 
-Usa la zona horaria `Europe/Madrid` en cron-job.org para que los horarios coincidan con Espana.
+### 3. Jobs de resumen diario a las 09:00 y 19:00
 
-No compartas `CRON_SECRET`. Si alguien conoce esa URL completa puede disparar el bot.
+Crea dos jobs en cron-job.org, uno a las `09:00` y otro a las `19:00`, ambos con:
+
+- URL: `https://api.github.com/repos/monica-calderon/weather-telegram-bot/actions/workflows/weather-daily.yml/dispatches`
+- Method: `POST`
+- Timezone: `Europe/Madrid`
+- Expected status: `204`
+
+Headers:
+
+```text
+Accept: application/vnd.github+json
+Authorization: Bearer TU_TOKEN_DE_GITHUB
+X-GitHub-Api-Version: 2022-11-28
+Content-Type: application/json
+```
+
+Body:
+
+```json
+{"ref":"main"}
+```
+
+### 4. Probar
+
+Al ejecutar bien, GitHub responde `204 No Content`. Despues veras una ejecucion nueva en `Actions`.
+
+Si cron-job.org devuelve `401`, el token de GitHub no es valido o no tiene permiso `Actions: Read and write`.
+
+Si devuelve `404`, revisa que el repositorio, el workflow o el branch `main` esten bien escritos.
+
+No compartas el token de GitHub usado en cron-job.org. Si se filtra, revocalo y crea otro.
 
 ## Cambiar frecuencia y umbrales
 
-La frecuencia se cambia editando los `cron` en:
-
-- `.github/workflows/weather-alerts.yml`
-- `.github/workflows/weather-daily.yml`
+La frecuencia se cambia en cron-job.org. Los workflows del repo no tienen `schedule` propio para evitar ejecuciones duplicadas.
 
 Los umbrales se cambian con variables del repositorio o en `.env` para local:
 

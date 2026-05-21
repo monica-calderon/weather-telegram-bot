@@ -100,9 +100,15 @@ class AemetClient:
                 response = self.session.get(
                     url, headers=headers, params=params, timeout=self.timeout
                 )
-                if response.status_code in {429, 500, 502, 503, 504} and attempt < 2:
-                    time.sleep(2**attempt)
-                    continue
+                if response.status_code == 429:
+    raise AemetClientError(
+        "AEMET ha devuelto 429 Too Many Requests. "
+        "Se omite esta ejecución para no empeorar el bloqueo temporal."
+    )
+
+if response.status_code in {500, 502, 503, 504} and attempt < 2:
+    time.sleep(2**attempt)
+    continue
                 response.raise_for_status()
                 return response
             except requests.RequestException as exc:

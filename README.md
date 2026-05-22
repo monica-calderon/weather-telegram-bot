@@ -7,6 +7,7 @@ El proyecto esta preparado para ejecutarse en local con `.env` y en GitHub Actio
 ## Que hace
 
 - Consulta la prediccion diaria por municipio de AEMET OpenData.
+- Consulta observacion convencional de AEMET para incluir temperatura actual.
 - Intenta consultar avisos oficiales AEMET.
 - Aplica reglas configurables por variables de entorno.
 - Envia mensajes con Telegram Bot API.
@@ -48,6 +49,8 @@ RAIN_PROB_THRESHOLD=70
 WIND_KMH_THRESHOLD=45
 HEAT_TEMP_THRESHOLD=35
 COLD_TEMP_THRESHOLD=0
+AEMET_ALERT_AREA=72
+AEMET_STATION_ID=
 ```
 
 ## Crear bot de Telegram
@@ -122,7 +125,8 @@ Configura estas `Variables` del repositorio:
 - `WIND_KMH_THRESHOLD`
 - `HEAT_TEMP_THRESHOLD`
 - `COLD_TEMP_THRESHOLD`
-- `AEMET_ALERT_AREA` opcional, por defecto `esp`. Para Comunidad de Madrid usa `72`.
+- `AEMET_ALERT_AREA` opcional, por defecto `72` para Comunidad de Madrid.
+- `AEMET_STATION_ID` opcional. Si lo configuras, se usa esa estacion AEMET para la temperatura actual. Si lo dejas vacio, el bot intenta encontrar una observacion cuyo nombre coincida con `MUNICIPIO_NOMBRE`.
 
 Hay tres workflows:
 
@@ -174,9 +178,9 @@ Body:
 {"ref":"main"}
 ```
 
-### 3. Jobs de resumen diario a las 09:00 y 19:00
+### 3. Jobs de resumen diario a las 08:15 y 19:00
 
-Crea dos jobs en cron-job.org, uno a las `09:00` y otro a las `19:00`, ambos con:
+Crea dos jobs en cron-job.org, uno a las `08:15` y otro a las `19:00`, ambos con:
 
 - URL: `https://api.github.com/repos/monica-calderon/weather-telegram-bot/actions/workflows/weather-daily.yml/dispatches`
 - Method: `POST`
@@ -218,13 +222,15 @@ Los umbrales se cambian con variables del repositorio o en `.env` para local:
 - `WIND_KMH_THRESHOLD`: viento minimo en km/h.
 - `HEAT_TEMP_THRESHOLD`: temperatura maxima para alerta de calor.
 - `COLD_TEMP_THRESHOLD`: temperatura minima para frio/helada.
+- `AEMET_ALERT_AREA`: area de avisos oficiales. `72` es Comunidad de Madrid.
+- `AEMET_STATION_ID`: estacion AEMET para temperatura actual, opcional.
 
 ## Privacidad y seguridad
 
 - No subas `.env`.
 - No subas tokens ni claves API.
 - Si el repositorio es publico, cualquier archivo generado y subido al repo sera publico.
-- El estado `.state/` esta ignorado por Git y se conserva en Actions mediante cache.
+- El estado `.state/` esta ignorado por Git. En Actions se restaura y persiste en la rama `bot-state`, que contiene solo `notified_alerts.json` con claves de deduplicacion y fechas.
 
 ## Limitaciones
 

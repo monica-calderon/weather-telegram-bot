@@ -25,9 +25,19 @@ class AemetClient:
         )
         return self._fetch_aemet_data(endpoint)
 
-    def get_weather_alerts(self, area: str = "esp") -> Any:
+    def get_weather_alerts(self, area: str = "72") -> Any:
         endpoint = f"{self.BASE_URL}/api/avisos_cap/ultimoelaborado/area/{area}"
         return self._fetch_aemet_data(endpoint, allow_non_json_data=True)
+
+    def get_current_observations(self, station_id: str | None = None) -> Any:
+        if station_id:
+            endpoint = (
+                f"{self.BASE_URL}/api/observacion/convencional/datos/estacion/"
+                f"{station_id}"
+            )
+        else:
+            endpoint = f"{self.BASE_URL}/api/observacion/convencional/todas"
+        return self._fetch_aemet_data(endpoint)
 
     def _fetch_aemet_data(
         self, endpoint_url: str, *, allow_non_json_data: bool = False

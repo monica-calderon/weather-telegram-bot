@@ -44,6 +44,14 @@ def run_bot(mode: str, config: Config) -> dict[str, int | str]:
     normalized["official_alerts"] = normalize_official_alerts(official_alerts)
 
     if mode == "daily":
+        current_observations = _safe_get_current_observations(
+            aemet, config.aemet_station_id
+        )
+        normalized["current_temp"] = normalize_current_temperature(
+            current_observations,
+            config.municipio_nombre,
+            config.aemet_station_id,
+        )
         message = build_daily_summary_message(
             normalized,
             config.municipio_nombre,
@@ -89,6 +97,16 @@ def _safe_get_official_alerts(aemet: AemetClient, area: str) -> Any:
         return []
 
 
+def _safe_get_current_observations(
+    aemet: AemetClient, station_id: str | None
+) -> Any:
+    try:
+        return aemet.get_current_observations(station_id)
+    except AemetClientError as exc:
+        LOGGER.warning("No se pudo obtener temperatura actual AEMET: %s", exc)
+        return []
+
+
 def _current_time(timezone: str) -> str:
     try:
         tz = ZoneInfo(timezone)
@@ -96,6 +114,42 @@ def _current_time(timezone: str) -> str:
         LOGGER.warning("Timezone no valido '%s'. Se usara UTC.", timezone)
         tz = ZoneInfo("UTC")
     return datetime.now(tz).strftime("%H:%M")
+
+
+def normalize_current_temperature(
+    observations: Any, municipio_nombre: str, station_id: str | None = None
+) -> int | float | None:
+    if isinstance(observations, dict):
+        candidates = [observations]
+    elif isinstance(observations, list):
+        candidates = observations
+    else:
+        return None
+
+    if not station_id:
+        municipio_key = _normalize_text(municipio_nombre)
+        candidates = [
+            item
+            for item in candidates
+            if isinstance(item, dict)
+            and municipio_key in _normalize_text(str(item.get("ubi", "")))
+        ]
+
+    candidates_with_temp = [
+        item
+        for item in candidates
+        if isinstance(item, dict) and _to_number(item.get("ta")) is not None
+    ]
+    if not candidates_with_temp:
+        return None
+
+    latest = max(candidates_with_temp, key=lambda item: str(item.get("fint", "")))
+    return _to_number(latest.get("ta"))
+
+
+def _normalize_text(value: str) -> str:
+    replacements = str.maketrans("ÁÉÍÓÚÜÑáéíóúüñ", "AEIOUUNaeiouun")
+    return value.translate(replacements).casefold()
 
 
 def normalize_forecast(forecast: Any, municipio_nombre: str) -> dict[str, Any]:

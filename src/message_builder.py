@@ -33,6 +33,7 @@ def build_daily_summary_message(
 ) -> str:
     max_temp = _format_value(summary.get("max_temp"), "°C")
     min_temp = _format_value(summary.get("min_temp"), "°C")
+    current_temp = _format_value(summary.get("current_temp"), "°C")
     rain_probability = _format_value(summary.get("rain_probability"), "%")
     wind_kmh = _format_value(summary.get("wind_kmh"), " km/h")
     title = "☀️ <b>Resumen diario</b>"
@@ -43,6 +44,7 @@ def build_daily_summary_message(
             title,
             "",
             f"📍 {html.escape(municipio_nombre)}",
+            f"🌡️ Actual: {html.escape(current_temp)}",
             f"🌡️ Máxima: {html.escape(max_temp)}",
             f"🌡️ Mínima: {html.escape(min_temp)}",
             f"🌧️ Lluvia: {html.escape(rain_probability)}",

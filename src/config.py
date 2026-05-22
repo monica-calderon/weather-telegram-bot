@@ -22,7 +22,8 @@ class Config:
     wind_kmh_threshold: int = 45
     heat_temp_threshold: int = 35
     cold_temp_threshold: int = 0
-    aemet_alert_area: str = "esp"
+    aemet_alert_area: str = "72"
+    aemet_station_id: str | None = None
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -52,7 +53,8 @@ class Config:
             wind_kmh_threshold=_int_env("WIND_KMH_THRESHOLD", 45),
             heat_temp_threshold=_int_env("HEAT_TEMP_THRESHOLD", 35),
             cold_temp_threshold=_int_env("COLD_TEMP_THRESHOLD", 0),
-            aemet_alert_area=os.getenv("AEMET_ALERT_AREA", "esp"),
+            aemet_alert_area=os.getenv("AEMET_ALERT_AREA", "72"),
+            aemet_station_id=os.getenv("AEMET_STATION_ID"),
         )
 
 

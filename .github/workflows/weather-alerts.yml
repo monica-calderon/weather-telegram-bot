@@ -3,6 +3,13 @@ name: Weather alerts
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
+concurrency:
+  group: weather-alert-state
+  cancel-in-progress: false
+
 jobs:
   alerts:
     runs-on: ubuntu-latest
@@ -17,7 +24,8 @@ jobs:
       WIND_KMH_THRESHOLD: ${{ vars.WIND_KMH_THRESHOLD || '45' }}
       HEAT_TEMP_THRESHOLD: ${{ vars.HEAT_TEMP_THRESHOLD || '35' }}
       COLD_TEMP_THRESHOLD: ${{ vars.COLD_TEMP_THRESHOLD || '0' }}
-      AEMET_ALERT_AREA: ${{ vars.AEMET_ALERT_AREA || 'esp' }}
+      AEMET_ALERT_AREA: ${{ vars.AEMET_ALERT_AREA || '72' }}
+      AEMET_STATION_ID: ${{ vars.AEMET_STATION_ID }}
 
     steps:
       - uses: actions/checkout@v4
@@ -27,15 +35,44 @@ jobs:
           python-version: "3.12"
 
       - name: Restore notification state
-        uses: actions/cache@v4
-        with:
-          path: .state
-          key: weather-alert-state-${{ github.run_id }}
-          restore-keys: |
-            weather-alert-state-
+        shell: bash
+        run: |
+          mkdir -p .state
+          if git ls-remote --exit-code --heads origin bot-state >/dev/null 2>&1; then
+            git fetch origin bot-state --depth=1
+            git show origin/bot-state:notified_alerts.json > .state/notified_alerts.json || echo "{}" > .state/notified_alerts.json
+          else
+            echo "{}" > .state/notified_alerts.json
+          fi
 
       - name: Install dependencies
         run: pip install -r requirements.txt
 
       - name: Run alert check
         run: python -m src.main alerts
+
+      - name: Persist notification state
+        shell: bash
+        run: |
+          if [ ! -f .state/notified_alerts.json ]; then
+            echo "{}" > .state/notified_alerts.json
+          fi
+
+          state_dir="$(mktemp -d)"
+          cp .state/notified_alerts.json "$state_dir/notified_alerts.json"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git ls-remote --exit-code --heads origin bot-state >/dev/null 2>&1; then
+            git fetch origin bot-state --depth=1
+            git switch --detach origin/bot-state
+          else
+            git switch --orphan bot-state
+            git rm -rf . >/dev/null 2>&1 || true
+          fi
+
+          cp "$state_dir/notified_alerts.json" notified_alerts.json
+          git add notified_alerts.json
+          git commit -m "Update notification state" || exit 0
+          git push origin HEAD:bot-state

@@ -22,6 +22,7 @@ def test_build_alert_message_contains_expected_fields():
 def test_build_daily_summary_message_contains_expected_values():
     message = build_daily_summary_message(
         {
+            "current_temp": 21,
             "max_temp": 31,
             "min_temp": 18,
             "rain_probability": 40,
@@ -32,6 +33,7 @@ def test_build_daily_summary_message_contains_expected_values():
     )
 
     assert "☀️ <b>Resumen diario</b> 09:00" in message
+    assert "Actual: 21°C" in message
     assert "Máxima: 31°C" in message
     assert "Mínima: 18°C" in message
     assert "Lluvia: 40%" in message

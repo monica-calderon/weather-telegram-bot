@@ -52,6 +52,7 @@ def run_bot(mode: str, config: Config) -> dict[str, int | str]:
             config.municipio_nombre,
             config.aemet_station_id,
         )
+        normalized["wind_notice_threshold"] = config.wind_kmh_threshold
         message = build_daily_summary_message(
             normalized,
             config.municipio_nombre,
@@ -162,6 +163,8 @@ def normalize_forecast(forecast: Any, municipio_nombre: str) -> dict[str, Any]:
         "rain_probability": _max_period_value(day.get("probPrecipitacion", [])),
         "rain_period": _period_for_max_value(day.get("probPrecipitacion", [])),
         "wind_kmh": _max_wind(day.get("viento", [])),
+        "wind_period": _period_for_max_wind(day.get("viento", [])),
+        "sky_status": _first_sky_status(day.get("estadoCielo", [])),
     }
 
 
@@ -335,6 +338,21 @@ def _period_for_max_value(items: Any) -> str:
     return _format_period(best_item.get("periodo"))
 
 
+def _period_for_max_wind(items: Any) -> str:
+    best_item = None
+    best_value = None
+    for item in items if isinstance(items, list) else []:
+        if not isinstance(item, dict):
+            continue
+        value = _to_number(item.get("velocidad"))
+        if value is not None and (best_value is None or value > best_value):
+            best_value = value
+            best_item = item
+    if not best_item:
+        return "hoy"
+    return _format_period(best_item.get("periodo"))
+
+
 def _format_period(period: Any) -> str:
     if not period:
         return "hoy"
@@ -342,6 +360,16 @@ def _format_period(period: Any) -> str:
     if len(text) == 4 and text.isdigit():
         return f"entre {text[:2]}:00 y {text[2:]}:00"
     return text
+
+
+def _first_sky_status(items: Any) -> str | None:
+    for item in items if isinstance(items, list) else []:
+        if not isinstance(item, dict):
+            continue
+        description = item.get("descripcion")
+        if description:
+            return str(description)
+    return None
 
 
 def _max_wind(items: Any) -> int | float | None:

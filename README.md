@@ -8,6 +8,7 @@ El proyecto esta preparado para ejecutarse en local con `.env` y en GitHub Actio
 
 - Consulta la prediccion diaria por municipio de AEMET OpenData.
 - Consulta observacion convencional de AEMET para incluir temperatura actual.
+- Incluye estado de cielo previsto en el resumen diario.
 - Intenta consultar avisos oficiales AEMET.
 - Aplica reglas configurables por variables de entorno.
 - Envia mensajes con Telegram Bot API.
@@ -99,6 +100,8 @@ Resumen diario:
 ```bash
 python -m src.main daily
 ```
+
+En el resumen diario, `Lluvia máx.` y `Viento máx.` no son valores actuales ni medias: son el valor maximo previsto por AEMET para algun tramo del dia. Si la lluvia supera el 50% o el viento supera `WIND_KMH_THRESHOLD`, el resumen añade un aviso con el tramo horario afectado.
 
 Tests:
 

@@ -22,19 +22,26 @@ def test_build_alert_message_contains_expected_fields():
 def test_build_daily_summary_message_contains_expected_values():
     message = build_daily_summary_message(
         {
+            "sky_status": "Poco nuboso",
             "current_temp": 21,
             "max_temp": 31,
             "min_temp": 18,
-            "rain_probability": 40,
-            "wind_kmh": 22,
+            "rain_probability": 60,
+            "rain_period": "entre 12:00 y 18:00",
+            "wind_kmh": 48,
+            "wind_period": "entre 18:00 y 24:00",
+            "wind_notice_threshold": 45,
         },
         "Alcala de Henares",
         current_time="09:00",
     )
 
     assert "☀️ <b>Resumen diario</b> 09:00" in message
+    assert "Cielo: Poco nuboso" in message
     assert "Actual: 21°C" in message
     assert "Máxima: 31°C" in message
     assert "Mínima: 18°C" in message
-    assert "Lluvia: 40%" in message
-    assert "Viento: 22 km/h" in message
+    assert "Lluvia máx.: 60%" in message
+    assert "Viento máx.: 48 km/h" in message
+    assert "Aviso lluvia: 60% entre 12:00 y 18:00" in message
+    assert "Aviso viento: 48 km/h entre 18:00 y 24:00" in message

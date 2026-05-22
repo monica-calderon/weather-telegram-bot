@@ -35,13 +35,16 @@ def build_weather_alerts(
 
     wind_kmh = normalized.get("wind_kmh")
     if wind_kmh is not None and wind_kmh >= wind_kmh_threshold:
+        period = normalized.get("wind_period", "hoy")
         alerts.append(
             {
                 "type": "wind",
                 "severity": "medium",
                 "title": "Viento fuerte",
-                "description": f"Viento previsto de hasta {wind_kmh} km/h en {place}.",
-                "dedupe_key": f"wind-{day}",
+                "description": (
+                    f"Viento previsto de hasta {wind_kmh} km/h {period} en {place}."
+                ),
+                "dedupe_key": f"wind-{day}-{period}",
             }
         )
 

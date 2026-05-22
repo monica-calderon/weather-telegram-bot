@@ -31,14 +31,16 @@ def test_rain_alert_when_probability_reaches_threshold():
 
 def test_wind_alert_when_speed_reaches_threshold():
     alerts = build_weather_alerts(
-        base_weather(wind_kmh=50),
+        base_weather(wind_kmh=50, wind_period="entre 18:00 y 24:00"),
         rain_prob_threshold=70,
         wind_kmh_threshold=45,
         heat_temp_threshold=35,
         cold_temp_threshold=0,
     )
 
-    assert any(alert["type"] == "wind" for alert in alerts)
+    wind_alert = next(alert for alert in alerts if alert["type"] == "wind")
+    assert "entre 18:00 y 24:00" in wind_alert["description"]
+    assert wind_alert["dedupe_key"] == "wind-2026-05-21-entre 18:00 y 24:00"
 
 
 def test_heat_alert_when_max_temperature_reaches_threshold():

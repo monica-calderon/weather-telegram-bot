@@ -13,7 +13,7 @@ jobs:
       MUNICIPIO_ID: ${{ vars.MUNICIPIO_ID }}
       MUNICIPIO_NOMBRE: ${{ vars.MUNICIPIO_NOMBRE }}
       TIMEZONE: ${{ vars.TIMEZONE || 'Europe/Madrid' }}
-      RAIN_PROB_THRESHOLD: ${{ vars.RAIN_PROB_THRESHOLD || '70' }}
+      RAIN_PROB_THRESHOLD: ${{ vars.RAIN_PROB_THRESHOLD || '50' }}
       WIND_KMH_THRESHOLD: ${{ vars.WIND_KMH_THRESHOLD || '45' }}
       HEAT_TEMP_THRESHOLD: ${{ vars.HEAT_TEMP_THRESHOLD || '35' }}
       COLD_TEMP_THRESHOLD: ${{ vars.COLD_TEMP_THRESHOLD || '0' }}

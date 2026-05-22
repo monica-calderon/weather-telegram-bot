@@ -52,7 +52,13 @@ def run_bot(mode: str, config: Config) -> dict[str, int | str]:
             config.municipio_nombre,
             config.aemet_station_id,
         )
-        normalized["wind_notice_threshold"] = config.wind_kmh_threshold
+        normalized["daily_alerts"] = build_weather_alerts(
+            normalized,
+            rain_prob_threshold=config.rain_prob_threshold,
+            wind_kmh_threshold=config.wind_kmh_threshold,
+            heat_temp_threshold=config.heat_temp_threshold,
+            cold_temp_threshold=config.cold_temp_threshold,
+        )
         message = build_daily_summary_message(
             normalized,
             config.municipio_nombre,

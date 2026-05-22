@@ -18,7 +18,7 @@ class Config:
     municipio_id: str
     municipio_nombre: str
     timezone: str = "Europe/Madrid"
-    rain_prob_threshold: int = 70
+    rain_prob_threshold: int = 50
     wind_kmh_threshold: int = 45
     heat_temp_threshold: int = 35
     cold_temp_threshold: int = 0
@@ -49,7 +49,7 @@ class Config:
             municipio_id=required["MUNICIPIO_ID"] or "",
             municipio_nombre=required["MUNICIPIO_NOMBRE"] or "",
             timezone=os.getenv("TIMEZONE", "Europe/Madrid"),
-            rain_prob_threshold=_int_env("RAIN_PROB_THRESHOLD", 70),
+            rain_prob_threshold=_int_env("RAIN_PROB_THRESHOLD", 50),
             wind_kmh_threshold=_int_env("WIND_KMH_THRESHOLD", 45),
             heat_temp_threshold=_int_env("HEAT_TEMP_THRESHOLD", 35),
             cold_temp_threshold=_int_env("COLD_TEMP_THRESHOLD", 0),

@@ -7,10 +7,12 @@ def test_config_defaults_to_madrid_alert_area(monkeypatch):
     monkeypatch.setenv("TELEGRAM_CHAT_ID", "chat")
     monkeypatch.setenv("MUNICIPIO_ID", "28005")
     monkeypatch.setenv("MUNICIPIO_NOMBRE", "Alcala")
+    monkeypatch.setenv("RAIN_PROB_THRESHOLD", "")
     monkeypatch.delenv("AEMET_ALERT_AREA", raising=False)
     monkeypatch.delenv("AEMET_STATION_ID", raising=False)
 
     config = Config.from_env()
 
+    assert config.rain_prob_threshold == 50
     assert config.aemet_alert_area == "72"
     assert config.aemet_station_id is None

@@ -30,7 +30,36 @@ def test_build_daily_summary_message_contains_expected_values():
             "rain_period": "entre 12:00 y 18:00",
             "wind_kmh": 48,
             "wind_period": "entre 18:00 y 24:00",
-            "wind_notice_threshold": 45,
+            "daily_alerts": [
+                {
+                    "type": "rain",
+                    "severity": "medium",
+                    "title": "Posible lluvia",
+                    "description": "Probabilidad de lluvia del 60% entre 12:00 y 18:00 en Alcala.",
+                    "dedupe_key": "rain-2026-05-22-1218",
+                },
+                {
+                    "type": "wind",
+                    "severity": "medium",
+                    "title": "Viento fuerte",
+                    "description": "Viento previsto de hasta 48 km/h entre 18:00 y 24:00 en Alcala.",
+                    "dedupe_key": "wind-2026-05-22-1824",
+                },
+                {
+                    "type": "heat",
+                    "severity": "medium",
+                    "title": "Calor",
+                    "description": "Temperatura maxima prevista de 31 C en Alcala.",
+                    "dedupe_key": "heat-2026-05-22",
+                },
+                {
+                    "type": "official",
+                    "severity": "high",
+                    "title": "Aviso oficial AEMET: Tormentas",
+                    "description": "AEMET mantiene aviso naranja por Tormentas en Alcala.",
+                    "dedupe_key": "official-tormentas",
+                },
+            ],
         },
         "Alcala de Henares",
         current_time="09:00",
@@ -43,5 +72,8 @@ def test_build_daily_summary_message_contains_expected_values():
     assert "Mínima: 18°C" in message
     assert "Lluvia máx.: 60%" in message
     assert "Viento máx.: 48 km/h" in message
-    assert "Aviso lluvia: 60% entre 12:00 y 18:00" in message
-    assert "Aviso viento: 48 km/h entre 18:00 y 24:00" in message
+    assert "<b>Avisos del día</b>" in message
+    assert "Posible lluvia: Probabilidad de lluvia del 60% entre 12:00 y 18:00" in message
+    assert "Viento fuerte: Viento previsto de hasta 48 km/h entre 18:00 y 24:00" in message
+    assert "Calor: Temperatura maxima prevista de 31 C" in message
+    assert "Aviso oficial AEMET: Tormentas" in message

@@ -1,6 +1,6 @@
 # weather-telegram-bot
 
-Bot meteorologico en Python que consulta AEMET OpenData y envia notificaciones por Telegram cuando detecta lluvia probable, viento fuerte, calor, frio/heladas o avisos oficiales de AEMET. Tambien puede enviar un resumen diario.
+Bot meteorologico en Python que consulta AEMET OpenData y envia resúmenes diarios por Telegram con prediccion, temperatura actual y avisos relevantes del dia.
 
 El proyecto esta preparado para ejecutarse en local con `.env` y en GitHub Actions. La programacion se delega a cron-job.org, que llama a la API de GitHub para lanzar los workflows.
 
@@ -10,9 +10,8 @@ El proyecto esta preparado para ejecutarse en local con `.env` y en GitHub Actio
 - Consulta observacion convencional de AEMET para incluir temperatura actual.
 - Incluye estado de cielo previsto en el resumen diario.
 - Intenta consultar avisos oficiales AEMET.
-- Aplica reglas configurables por variables de entorno.
+- Aplica reglas configurables por variables de entorno e incluye los avisos dentro del resumen diario.
 - Envia mensajes con Telegram Bot API.
-- Evita repetir alertas usando `.state/notified_alerts.json`.
 - Mantiene workflows de GitHub Actions para ejecucion manual o disparo por API.
 - Usa cron-job.org como reloj externo mas fiable que el scheduler nativo de GitHub.
 
@@ -46,7 +45,7 @@ TELEGRAM_CHAT_ID=123456789
 MUNICIPIO_ID=28005
 MUNICIPIO_NOMBRE=Alcalá de Henares
 TIMEZONE=Europe/Madrid
-RAIN_PROB_THRESHOLD=70
+RAIN_PROB_THRESHOLD=50
 WIND_KMH_THRESHOLD=45
 HEAT_TEMP_THRESHOLD=35
 COLD_TEMP_THRESHOLD=0
@@ -89,11 +88,13 @@ Ejemplo: `28005` corresponde a Alcala de Henares.
 
 ## Ejecutar
 
-Alertas:
+Alertas locales/manuales:
 
 ```bash
 python -m src.main alerts
 ```
+
+El modo `alerts` se conserva para pruebas locales puntuales. La automatizacion recomendada ya no lo usa para evitar llamadas frecuentes a AEMET.
 
 Resumen diario:
 
@@ -101,7 +102,7 @@ Resumen diario:
 python -m src.main daily
 ```
 
-En el resumen diario, `Lluvia máx.` y `Viento máx.` no son valores actuales ni medias: son el valor maximo previsto por AEMET para algun tramo del dia. Si la lluvia supera el 50% o el viento supera `WIND_KMH_THRESHOLD`, el resumen añade un aviso con el tramo horario afectado.
+En el resumen diario, `Lluvia máx.` y `Viento máx.` no son valores actuales ni medias: son el valor maximo previsto por AEMET para algun tramo del dia. Si las reglas detectan lluvia, viento, calor, frio/helada o avisos oficiales, el resumen añade la seccion `Avisos del día` con el detalle y, cuando AEMET lo publica, el tramo horario afectado.
 
 Tests:
 
@@ -131,9 +132,8 @@ Configura estas `Variables` del repositorio:
 - `AEMET_ALERT_AREA` opcional, por defecto `72` para Comunidad de Madrid.
 - `AEMET_STATION_ID` opcional. Si lo configuras, se usa esa estacion AEMET para la temperatura actual. Si lo dejas vacio, el bot intenta encontrar una observacion cuyo nombre coincida con `MUNICIPIO_NOMBRE`.
 
-Hay tres workflows:
+Hay dos workflows:
 
-- `Weather alerts`: ejecucion manual o por API con `workflow_dispatch`.
 - `Weather daily summary`: ejecucion manual o por API con `workflow_dispatch`.
 - `CI`: ejecuta los tests con `pytest` en cada push, pull request o manualmente.
 
@@ -156,34 +156,9 @@ En GitHub, crea un token para que cron-job.org pueda lanzar workflows:
 
 Guarda ese token solo en cron-job.org. No lo subas al repo ni lo pongas en `.env`.
 
-### 2. Job de alertas cada 30 minutos
+### 2. Jobs de resumen diario a las 08:15, 14:30 y 19:00
 
-En cron-job.org crea un job:
-
-- URL: `https://api.github.com/repos/monica-calderon/weather-telegram-bot/actions/workflows/weather-alerts.yml/dispatches`
-- Method: `POST`
-- Schedule: cada 30 minutos.
-- Timezone: `Europe/Madrid`
-- Expected status: `204`
-
-Headers:
-
-```text
-Accept: application/vnd.github+json
-Authorization: Bearer TU_TOKEN_DE_GITHUB
-X-GitHub-Api-Version: 2022-11-28
-Content-Type: application/json
-```
-
-Body:
-
-```json
-{"ref":"main"}
-```
-
-### 3. Jobs de resumen diario a las 08:15 y 19:00
-
-Crea dos jobs en cron-job.org, uno a las `08:15` y otro a las `19:00`, ambos con:
+Crea tres jobs en cron-job.org, uno a las `08:15`, otro a las `14:30` y otro a las `19:00`, todos con:
 
 - URL: `https://api.github.com/repos/monica-calderon/weather-telegram-bot/actions/workflows/weather-daily.yml/dispatches`
 - Method: `POST`
@@ -205,7 +180,7 @@ Body:
 {"ref":"main"}
 ```
 
-### 4. Probar
+### 3. Probar
 
 Al ejecutar bien, GitHub responde `204 No Content`. Despues veras una ejecucion nueva en `Actions`.
 
@@ -221,7 +196,7 @@ La frecuencia se cambia en cron-job.org. Los workflows del repo no tienen `sched
 
 Los umbrales se cambian con variables del repositorio o en `.env` para local:
 
-- `RAIN_PROB_THRESHOLD`: probabilidad de lluvia minima.
+- `RAIN_PROB_THRESHOLD`: probabilidad de lluvia minima. Por defecto `50`.
 - `WIND_KMH_THRESHOLD`: viento minimo en km/h.
 - `HEAT_TEMP_THRESHOLD`: temperatura maxima para alerta de calor.
 - `COLD_TEMP_THRESHOLD`: temperatura minima para frio/helada.
@@ -233,7 +208,7 @@ Los umbrales se cambian con variables del repositorio o en `.env` para local:
 - No subas `.env`.
 - No subas tokens ni claves API.
 - Si el repositorio es publico, cualquier archivo generado y subido al repo sera publico.
-- El estado `.state/` esta ignorado por Git. En Actions se restaura y persiste en la rama `bot-state`, que contiene solo `notified_alerts.json` con claves de deduplicacion y fechas.
+- El estado `.state/` esta ignorado por Git. La automatizacion recomendada no usa estado anti-duplicados porque las alertas van agrupadas dentro de cada resumen diario.
 
 ## Limitaciones
 

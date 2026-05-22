@@ -30,6 +30,7 @@ def test_build_daily_summary_message_contains_expected_values():
             "rain_period": "entre 12:00 y 18:00",
             "wind_kmh": 48,
             "wind_period": "entre 18:00 y 24:00",
+            "cache_note": True,
             "daily_alerts": [
                 {
                     "type": "rain",
@@ -77,3 +78,4 @@ def test_build_daily_summary_message_contains_expected_values():
     assert "Viento fuerte: Viento previsto de hasta 48 km/h entre 18:00 y 24:00" in message
     assert "Calor: Temperatura maxima prevista de 31 C" in message
     assert "Aviso oficial AEMET: Tormentas" in message
+    assert "Nota: datos cacheados por límite temporal de AEMET." in message

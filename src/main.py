@@ -4,13 +4,15 @@ import argparse
 import io
 import logging
 import sys
-from datetime import datetime
+from collections.abc import Callable
+from datetime import datetime, timedelta
 from typing import Any
 from xml.etree import ElementTree
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from zipfile import BadZipFile, ZipFile
 
 from src.aemet_client import AemetClient, AemetClientError
+from src.aemet_cache import AemetCache
 from src.config import Config, ConfigError
 from src.message_builder import build_alert_message, build_daily_summary_message
 from src.state_store import StateStore
@@ -38,14 +40,39 @@ def main(argv: list[str] | None = None) -> int:
 def run_bot(mode: str, config: Config) -> dict[str, int | str]:
     aemet = AemetClient(config.aemet_api_key)
     telegram = TelegramClient(config.telegram_bot_token, config.telegram_chat_id)
-    forecast = aemet.get_municipality_forecast(config.municipio_id)
-    official_alerts = _safe_get_official_alerts(aemet, config.aemet_alert_area)
+    cache = AemetCache()
+    cache_notes: set[str] = set()
+    today_key = _today_key(config.timezone)
+    forecast = _get_cached_aemet_data(
+        cache,
+        key=f"forecast:{config.municipio_id}",
+        fetch=lambda: aemet.get_municipality_forecast(config.municipio_id),
+        cache_date=today_key,
+        cache_notes=cache_notes,
+        required=True,
+    )
+    official_alerts = _get_cached_aemet_data(
+        cache,
+        key=f"alerts:{config.aemet_alert_area}",
+        fetch=lambda: aemet.get_weather_alerts(config.aemet_alert_area),
+        cache_date=today_key,
+        cache_notes=cache_notes,
+        required=False,
+        default=[],
+    )
     normalized = normalize_forecast(forecast, config.municipio_nombre)
     normalized["official_alerts"] = normalize_official_alerts(official_alerts)
 
     if mode == "daily":
-        current_observations = _safe_get_current_observations(
-            aemet, config.aemet_station_id
+        observation_key = config.aemet_station_id or "all"
+        current_observations = _get_cached_aemet_data(
+            cache,
+            key=f"observations:{observation_key}",
+            fetch=lambda: aemet.get_current_observations(config.aemet_station_id),
+            max_age=timedelta(minutes=90),
+            cache_notes=cache_notes,
+            required=False,
+            default=[],
         )
         normalized["current_temp"] = normalize_current_temperature(
             current_observations,
@@ -59,6 +86,7 @@ def run_bot(mode: str, config: Config) -> dict[str, int | str]:
             heat_temp_threshold=config.heat_temp_threshold,
             cold_temp_threshold=config.cold_temp_threshold,
         )
+        normalized["cache_note"] = bool(cache_notes)
         message = build_daily_summary_message(
             normalized,
             config.municipio_nombre,
@@ -96,22 +124,40 @@ def run_bot(mode: str, config: Config) -> dict[str, int | str]:
     return {"mode": "alerts", "detected": len(alerts), "sent": sent}
 
 
-def _safe_get_official_alerts(aemet: AemetClient, area: str) -> Any:
-    try:
-        return aemet.get_weather_alerts(area)
-    except AemetClientError as exc:
-        LOGGER.warning("No se pudieron obtener avisos oficiales AEMET: %s", exc)
-        return []
-
-
-def _safe_get_current_observations(
-    aemet: AemetClient, station_id: str | None
+def _get_cached_aemet_data(
+    cache: AemetCache,
+    *,
+    key: str,
+    fetch: Callable[[], Any],
+    cache_notes: set[str],
+    required: bool,
+    max_age: timedelta | None = None,
+    cache_date: str | None = None,
+    default: Any | None = None,
 ) -> Any:
+    cached = cache.get(key, max_age=max_age, cache_date=cache_date)
+    if cached is not None:
+        LOGGER.info("Usando cache AEMET valida: %s", key)
+        return cached
+
     try:
-        return aemet.get_current_observations(station_id)
+        fresh = fetch()
+        cache.set(key, fresh, cache_date=cache_date)
+        return fresh
     except AemetClientError as exc:
-        LOGGER.warning("No se pudo obtener temperatura actual AEMET: %s", exc)
-        return []
+        stale = cache.get_stale(key)
+        if _is_rate_limit_error(exc) and stale is not None:
+            LOGGER.warning("AEMET limito la API; se usa cache: %s", key)
+            cache_notes.add(key)
+            return stale
+        if required:
+            raise
+        LOGGER.warning("No se pudo obtener %s: %s", key, exc)
+        return default
+
+
+def _is_rate_limit_error(exc: AemetClientError) -> bool:
+    return "429" in str(exc) or "Too Many Requests" in str(exc)
 
 
 def _current_time(timezone: str) -> str:
@@ -121,6 +167,14 @@ def _current_time(timezone: str) -> str:
         LOGGER.warning("Timezone no valido '%s'. Se usara UTC.", timezone)
         tz = ZoneInfo("UTC")
     return datetime.now(tz).strftime("%H:%M")
+
+
+def _today_key(timezone: str) -> str:
+    try:
+        tz = ZoneInfo(timezone)
+    except ZoneInfoNotFoundError:
+        tz = ZoneInfo("UTC")
+    return datetime.now(tz).date().isoformat()
 
 
 def normalize_current_temperature(

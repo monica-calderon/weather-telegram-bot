@@ -3,6 +3,13 @@ name: Weather daily summary
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
+concurrency:
+  group: weather-daily-summary
+  cancel-in-progress: false
+
 jobs:
   daily:
     runs-on: ubuntu-latest
@@ -27,8 +34,46 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Restore AEMET cache
+        shell: bash
+        run: |
+          mkdir -p .state
+          if git ls-remote --exit-code --heads origin bot-state >/dev/null 2>&1; then
+            git fetch origin bot-state --depth=1
+            git show origin/bot-state:aemet_cache.json > .state/aemet_cache.json || echo "{}" > .state/aemet_cache.json
+          else
+            echo "{}" > .state/aemet_cache.json
+          fi
+
       - name: Install dependencies
         run: pip install -r requirements.txt
 
       - name: Send daily summary
         run: python -m src.main daily
+
+      - name: Persist AEMET cache
+        if: always()
+        shell: bash
+        run: |
+          if [ ! -f .state/aemet_cache.json ]; then
+            echo "{}" > .state/aemet_cache.json
+          fi
+
+          state_dir="$(mktemp -d)"
+          cp .state/aemet_cache.json "$state_dir/aemet_cache.json"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git ls-remote --exit-code --heads origin bot-state >/dev/null 2>&1; then
+            git fetch origin bot-state --depth=1
+            git switch --detach origin/bot-state
+          else
+            git switch --orphan bot-state
+            git rm -rf . >/dev/null 2>&1 || true
+          fi
+
+          cp "$state_dir/aemet_cache.json" aemet_cache.json
+          git add aemet_cache.json
+          git commit -m "Update AEMET cache" || exit 0
+          git push origin HEAD:bot-state

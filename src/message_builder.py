@@ -61,6 +61,8 @@ def build_daily_summary_message(
             lines.append(
                 f"• {html.escape(str(title_text))}: {html.escape(str(description))}"
             )
+    if summary.get("cache_note"):
+        lines.extend(["", "Nota: datos cacheados por límite temporal de AEMET."])
     lines.extend(["", "Fuente: AEMET"])
     return "\n".join(lines)
 

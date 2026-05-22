@@ -11,6 +11,7 @@ El proyecto esta preparado para ejecutarse en local con `.env` y en GitHub Actio
 - Incluye estado de cielo previsto en el resumen diario.
 - Intenta consultar avisos oficiales AEMET.
 - Aplica reglas configurables por variables de entorno e incluye los avisos dentro del resumen diario.
+- Reutiliza datos cacheados para reducir llamadas a AEMET y resistir limites temporales de la API.
 - Envia mensajes con Telegram Bot API.
 - Mantiene workflows de GitHub Actions para ejecucion manual o disparo por API.
 - Usa cron-job.org como reloj externo mas fiable que el scheduler nativo de GitHub.
@@ -103,6 +104,14 @@ python -m src.main daily
 ```
 
 En el resumen diario, `Lluvia máx.` y `Viento máx.` no son valores actuales ni medias: son el valor maximo previsto por AEMET para algun tramo del dia. Si las reglas detectan lluvia, viento, calor, frio/helada o avisos oficiales, el resumen añade la seccion `Avisos del día` con el detalle y, cuando AEMET lo publica, el tramo horario afectado.
+
+Para reducir errores `429 Too Many Requests`, el workflow guarda una cache persistente en la rama `bot-state`:
+
+- Prediccion municipal: se consulta como maximo una vez al dia.
+- Avisos oficiales: se consultan como maximo una vez al dia.
+- Observacion actual: se intenta refrescar en cada resumen; si AEMET limita la API, se usa la ultima observacion cacheada.
+
+Si un resumen usa cache por limite temporal de AEMET, el mensaje incluye la nota `datos cacheados por límite temporal de AEMET`.
 
 Tests:
 
@@ -208,7 +217,8 @@ Los umbrales se cambian con variables del repositorio o en `.env` para local:
 - No subas `.env`.
 - No subas tokens ni claves API.
 - Si el repositorio es publico, cualquier archivo generado y subido al repo sera publico.
-- El estado `.state/` esta ignorado por Git. La automatizacion recomendada no usa estado anti-duplicados porque las alertas van agrupadas dentro de cada resumen diario.
+- El estado `.state/` esta ignorado por Git.
+- La rama `bot-state` guarda `aemet_cache.json` para reducir llamadas a AEMET. No contiene tokens, solo respuestas meteorologicas cacheadas.
 
 ## Limitaciones
 

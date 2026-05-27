@@ -1,15 +1,32 @@
 from src.config import Config
 
 
+OPTIONAL_ENV_VARS = [
+    "AEMET_ALERT_AREA",
+    "AEMET_STATION_ID",
+    "CURRENT_OBSERVATION_MAX_AGE_MINUTES",
+    "OPEN_METEO_LATITUDE",
+    "OPEN_METEO_LONGITUDE",
+    "GOOGLE_SERVICE_ACCOUNT_JSON",
+    "GOOGLE_CALENDAR_IDS",
+    "CALENDAR_EVENTS_MAX",
+]
+
+
+def _clear_optional_env(monkeypatch):
+    monkeypatch.setenv("PYTHON_DOTENV_DISABLED", "1")
+    for name in OPTIONAL_ENV_VARS:
+        monkeypatch.delenv(name, raising=False)
+
+
 def test_config_defaults_to_madrid_alert_area(monkeypatch):
+    _clear_optional_env(monkeypatch)
     monkeypatch.setenv("AEMET_API_KEY", "aemet")
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "telegram")
     monkeypatch.setenv("TELEGRAM_CHAT_ID", "chat")
     monkeypatch.setenv("MUNICIPIO_ID", "28005")
     monkeypatch.setenv("MUNICIPIO_NOMBRE", "Alcala")
     monkeypatch.setenv("RAIN_PROB_THRESHOLD", "")
-    monkeypatch.delenv("AEMET_ALERT_AREA", raising=False)
-    monkeypatch.delenv("AEMET_STATION_ID", raising=False)
 
     config = Config.from_env()
 
@@ -25,12 +42,12 @@ def test_config_defaults_to_madrid_alert_area(monkeypatch):
 
 
 def test_config_keeps_station_empty_for_unknown_municipality(monkeypatch):
+    _clear_optional_env(monkeypatch)
     monkeypatch.setenv("AEMET_API_KEY", "aemet")
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "telegram")
     monkeypatch.setenv("TELEGRAM_CHAT_ID", "chat")
     monkeypatch.setenv("MUNICIPIO_ID", "99999")
     monkeypatch.setenv("MUNICIPIO_NOMBRE", "Otro")
-    monkeypatch.delenv("AEMET_STATION_ID", raising=False)
 
     config = Config.from_env()
 
@@ -40,6 +57,7 @@ def test_config_keeps_station_empty_for_unknown_municipality(monkeypatch):
 
 
 def test_config_reads_google_calendar_settings(monkeypatch):
+    _clear_optional_env(monkeypatch)
     monkeypatch.setenv("AEMET_API_KEY", "aemet")
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "telegram")
     monkeypatch.setenv("TELEGRAM_CHAT_ID", "chat")

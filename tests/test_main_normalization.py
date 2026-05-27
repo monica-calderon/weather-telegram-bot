@@ -89,3 +89,20 @@ def test_calendar_failure_returns_error_flag(monkeypatch):
     )
 
     assert result == {"calendar_error": True}
+
+
+def test_calendar_summary_skips_when_calendar_ids_are_missing():
+    result = _get_calendar_summary(
+        Config(
+            aemet_api_key="aemet",
+            telegram_bot_token="telegram",
+            telegram_chat_id="chat",
+            municipio_id="28005",
+            municipio_nombre="Alcala",
+            google_service_account_json='{"type":"service_account"}',
+            google_calendar_ids=(),
+        ),
+        datetime(2026, 5, 27, 9, 0),
+    )
+
+    assert result == {}

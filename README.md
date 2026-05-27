@@ -146,6 +146,8 @@ Configura estos `Secrets` en tu repositorio:
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_CHAT_ID`
 - `GOOGLE_SERVICE_ACCOUNT_JSON` opcional, JSON completo de la service account de Google.
+- `GOOGLE_CALENDAR_IDS` opcional si prefieres guardar tambien los IDs como secreto.
+- `CALENDAR_EVENTS_MAX` opcional si prefieres guardarlo como secreto.
 
 Configura estas `Variables` del repositorio:
 
@@ -257,6 +259,8 @@ tu-correo@gmail.com,abc123@group.calendar.google.com
 ```text
 CALENDAR_EVENTS_MAX=10
 ```
+
+Tambien puedes guardar `GOOGLE_CALENDAR_IDS` y `CALENDAR_EVENTS_MAX` como `Secrets`; el workflow acepta ambas opciones. Si existen como Variable y como Secret, se usa primero la Variable.
 
 ### 5. Configurar en local
 

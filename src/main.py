@@ -150,6 +150,13 @@ def run_bot(mode: str, config: Config) -> dict[str, int | str]:
 
 def _get_calendar_summary(config: Config, start: datetime) -> dict[str, Any]:
     if not config.google_service_account_json or not config.google_calendar_ids:
+        if config.google_service_account_json or config.google_calendar_ids:
+            LOGGER.warning(
+                "Google Calendar incompleto: GOOGLE_SERVICE_ACCOUNT_JSON=%s, "
+                "GOOGLE_CALENDAR_IDS=%s",
+                "configurado" if config.google_service_account_json else "vacio",
+                "configurado" if config.google_calendar_ids else "vacio",
+            )
         return {}
 
     end = datetime.combine(start.date(), time.max, tzinfo=start.tzinfo)

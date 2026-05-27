@@ -83,6 +83,30 @@ def test_build_daily_summary_message_contains_expected_values():
     assert "Nota: datos cacheados por límite temporal de AEMET." in message
 
 
+def test_build_daily_summary_message_uses_new_section_order():
+    message = build_daily_summary_message(
+        {
+            "sky_status": "Nubes altas",
+            "current_temp": 32,
+            "current_temp_source": "forecast",
+            "max_temp": 34,
+            "min_temp": 14,
+            "rain_probability": 0,
+            "wind_kmh": 5,
+            "calendar_events": [
+                {"time": "17:30", "title": "Reu ODJ Visita Papa"},
+            ],
+        },
+        "Alcala de Henares",
+        current_time="17:29",
+    )
+
+    assert message.index("Actual: 32°C prev.") < message.index("<b>Próximos eventos</b>")
+    assert message.index("<b>Próximos eventos</b>") < message.index("<b>Tiempo</b>")
+    assert message.index("<b>Tiempo</b>") < message.index("Cielo: Nubes altas")
+    assert message.count("-----------------------------------") == 2
+
+
 def test_build_daily_summary_message_marks_forecast_current_temperature():
     message = build_daily_summary_message(
         {

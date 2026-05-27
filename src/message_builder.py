@@ -46,26 +46,14 @@ def build_daily_summary_message(
         title,
         "",
         f"📍 {html.escape(municipio_nombre)}",
-        f"☁️ Cielo: {html.escape(str(sky_status))}",
-        f"🌡️ Máxima: {html.escape(max_temp)}",
-        f"🌡️ Mínima: {html.escape(min_temp)}",
-        f"🌧️ Lluvia máx.: {html.escape(rain_probability)}",
-        f"💨 Viento máx.: {html.escape(wind_kmh)}",
     ]
     if current_temp:
-        lines.insert(4, f"🌡️ Actual: {html.escape(current_temp)}")
-    if daily_alerts:
-        lines.append("")
-        lines.append("⚠️ <b>Avisos del día</b>")
-        for alert in daily_alerts:
-            title_text = alert.get("title") or TYPE_LABELS.get(alert.get("type", ""), "Aviso")
-            description = alert.get("description") or ""
-            lines.append(
-                f"• {html.escape(str(title_text))}: {html.escape(str(description))}"
-            )
+        lines.append(f"🌡️ Actual: {html.escape(current_temp)}")
+
+    lines.extend(["-----------------------------------"])
+
     if isinstance(calendar_events, list):
-        lines.append("")
-        lines.append("📅 <b>Próximos eventos</b>")
+        lines.extend(["", "📅 <b>Próximos eventos</b>"])
         if calendar_events:
             for event in calendar_events:
                 calendar_name = str(event.get("calendar") or "").strip()
@@ -79,6 +67,30 @@ def build_daily_summary_message(
                 )
         else:
             lines.append("Sin próximos eventos")
+        lines.append("-----------------------------------")
+
+    lines.extend(
+        [
+            "",
+            "🌤️ <b>Tiempo</b>",
+            f"☁️ Cielo: {html.escape(str(sky_status))}",
+            "",
+            f"🌡️ Máxima: {html.escape(max_temp)}",
+            f"🌡️ Mínima: {html.escape(min_temp)}",
+            f"🌧️ Lluvia máx.: {html.escape(rain_probability)}",
+            f"💨 Viento máx.: {html.escape(wind_kmh)}",
+        ]
+    )
+
+    if daily_alerts:
+        lines.append("")
+        lines.append("⚠️ <b>Avisos del día</b>")
+        for alert in daily_alerts:
+            title_text = alert.get("title") or TYPE_LABELS.get(alert.get("type", ""), "Aviso")
+            description = alert.get("description") or ""
+            lines.append(
+                f"• {html.escape(str(title_text))}: {html.escape(str(description))}"
+            )
     if summary.get("cache_note"):
         lines.extend(["", "Nota: datos cacheados por límite temporal de AEMET."])
     if summary.get("open_meteo_note"):

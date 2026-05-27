@@ -162,11 +162,15 @@ def _get_calendar_summary(config: Config, start: datetime) -> dict[str, Any]:
     end = datetime.combine(start.date(), time.max, tzinfo=start.tzinfo)
     try:
         client = GoogleCalendarClient(config.google_service_account_json)
+        calendar_names_by_id = dict(
+            zip(config.google_calendar_ids, config.google_calendar_names, strict=False)
+        )
         events = client.get_events_remaining_today(
             config.google_calendar_ids,
             start,
             end,
             max_results=config.calendar_events_max,
+            calendar_names_by_id=calendar_names_by_id,
         )
     except GoogleCalendarClientError as exc:
         LOGGER.warning("No se pudieron obtener eventos de Google Calendar: %s", exc)

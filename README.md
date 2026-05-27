@@ -64,6 +64,7 @@ OPEN_METEO_LATITUDE=40.4818
 OPEN_METEO_LONGITUDE=-3.3643
 GOOGLE_SERVICE_ACCOUNT_JSON={"type":"service_account","project_id":"..."}
 GOOGLE_CALENDAR_IDS=calendario1@gmail.com,abc123@group.calendar.google.com
+GOOGLE_CALENDAR_NAMES=Personal,Bubu
 CALENDAR_EVENTS_MAX=10
 ```
 
@@ -147,6 +148,7 @@ Configura estos `Secrets` en tu repositorio:
 - `TELEGRAM_CHAT_ID`
 - `GOOGLE_SERVICE_ACCOUNT_JSON` opcional, JSON completo de la service account de Google.
 - `GOOGLE_CALENDAR_IDS` opcional si prefieres guardar tambien los IDs como secreto.
+- `GOOGLE_CALENDAR_NAMES` opcional si prefieres guardar tambien los nombres visibles como secreto.
 - `CALENDAR_EVENTS_MAX` opcional si prefieres guardarlo como secreto.
 
 Configura estas `Variables` del repositorio:
@@ -163,6 +165,7 @@ Configura estas `Variables` del repositorio:
 - `CURRENT_OBSERVATION_MAX_AGE_MINUTES` opcional, por defecto `150`. Evita mostrar como actual una observacion de AEMET demasiado antigua.
 - `OPEN_METEO_LATITUDE` y `OPEN_METEO_LONGITUDE` opcionales. Para Alcala de Henares se usan por defecto `40.4818` y `-3.3643`.
 - `GOOGLE_CALENDAR_IDS` opcional, IDs de calendarios separados por coma.
+- `GOOGLE_CALENDAR_NAMES` opcional, nombres visibles separados por coma y en el mismo orden que `GOOGLE_CALENDAR_IDS`. Ejemplo: `Personal,Bubu`.
 - `CALENDAR_EVENTS_MAX` opcional, por defecto `10`.
 
 Hay dos workflows:
@@ -228,6 +231,12 @@ abc123@group.calendar.google.com
 ```
 
 Si quieres varios calendarios, ponlos separados por coma en `GOOGLE_CALENDAR_IDS`.
+Si Google no devuelve el nombre del calendario y ves un ID largo en Telegram, configura tambien `GOOGLE_CALENDAR_NAMES` con nombres bonitos en el mismo orden. Por ejemplo:
+
+```text
+GOOGLE_CALENDAR_IDS=tu-correo@gmail.com,abc123@group.calendar.google.com
+GOOGLE_CALENDAR_NAMES=Personal,Bubu
+```
 
 ### 4. Guardar en GitHub
 
@@ -246,12 +255,14 @@ Pega como valor el contenido completo del JSON descargado.
 
 ```text
 GOOGLE_CALENDAR_IDS
+GOOGLE_CALENDAR_NAMES
 ```
 
 Ejemplo:
 
 ```text
 tu-correo@gmail.com,abc123@group.calendar.google.com
+Personal,Bubu
 ```
 
 4. Opcionalmente, crea:
@@ -260,7 +271,7 @@ tu-correo@gmail.com,abc123@group.calendar.google.com
 CALENDAR_EVENTS_MAX=10
 ```
 
-Tambien puedes guardar `GOOGLE_CALENDAR_IDS` y `CALENDAR_EVENTS_MAX` como `Secrets`; el workflow acepta ambas opciones. Si existen como Variable y como Secret, se usa primero la Variable.
+Tambien puedes guardar `GOOGLE_CALENDAR_IDS`, `GOOGLE_CALENDAR_NAMES` y `CALENDAR_EVENTS_MAX` como `Secrets`; el workflow acepta ambas opciones. Si existen como Variable y como Secret, se usa primero la Variable.
 
 ### 5. Configurar en local
 
@@ -269,6 +280,7 @@ En `.env`, puedes usar las mismas variables:
 ```env
 GOOGLE_SERVICE_ACCOUNT_JSON={"type":"service_account","project_id":"..."}
 GOOGLE_CALENDAR_IDS=tu-correo@gmail.com,abc123@group.calendar.google.com
+GOOGLE_CALENDAR_NAMES=Personal,Bubu
 CALENDAR_EVENTS_MAX=10
 ```
 
@@ -342,6 +354,7 @@ Los umbrales se cambian con variables del repositorio o en `.env` para local:
 - `CURRENT_OBSERVATION_MAX_AGE_MINUTES`: antiguedad maxima aceptada para la observacion actual, por defecto `150`.
 - `OPEN_METEO_LATITUDE` y `OPEN_METEO_LONGITUDE`: coordenadas para Open-Meteo como ultimo recurso.
 - `GOOGLE_CALENDAR_IDS`: calendarios de Google separados por coma para mostrar `Proximos eventos`.
+- `GOOGLE_CALENDAR_NAMES`: nombres visibles de calendarios separados por coma, en el mismo orden que `GOOGLE_CALENDAR_IDS`.
 - `CALENDAR_EVENTS_MAX`: maximo de eventos a mostrar, por defecto `10`.
 
 ## Privacidad y seguridad

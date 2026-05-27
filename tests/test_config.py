@@ -9,6 +9,7 @@ OPTIONAL_ENV_VARS = [
     "OPEN_METEO_LONGITUDE",
     "GOOGLE_SERVICE_ACCOUNT_JSON",
     "GOOGLE_CALENDAR_IDS",
+    "GOOGLE_CALENDAR_NAMES",
     "CALENDAR_EVENTS_MAX",
 ]
 
@@ -38,6 +39,7 @@ def test_config_defaults_to_madrid_alert_area(monkeypatch):
     assert config.open_meteo_longitude == -3.3643
     assert config.google_service_account_json is None
     assert config.google_calendar_ids == ()
+    assert config.google_calendar_names == ()
     assert config.calendar_events_max == 10
 
 
@@ -68,6 +70,7 @@ def test_config_reads_google_calendar_settings(monkeypatch):
         "GOOGLE_CALENDAR_IDS",
         "calendar-one@example.com, calendar-two@example.com",
     )
+    monkeypatch.setenv("GOOGLE_CALENDAR_NAMES", "Personal, Bubu")
     monkeypatch.setenv("CALENDAR_EVENTS_MAX", "3")
 
     config = Config.from_env()
@@ -77,4 +80,5 @@ def test_config_reads_google_calendar_settings(monkeypatch):
         "calendar-one@example.com",
         "calendar-two@example.com",
     )
+    assert config.google_calendar_names == ("Personal", "Bubu")
     assert config.calendar_events_max == 3

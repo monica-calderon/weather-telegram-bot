@@ -104,6 +104,7 @@ def test_build_daily_summary_message_uses_new_section_order():
     assert message.index("Actual: 32°C prev.") < message.index("<b>Próximos eventos</b>")
     assert message.index("<b>Próximos eventos</b>") < message.index("<b>Tiempo</b>")
     assert message.index("<b>Tiempo</b>") < message.index("Cielo: Nubes altas")
+    assert "Cielo: Nubes altas\n\n🌡️ Máxima" not in message
     assert message.count("-----------------------------------") == 2
 
 

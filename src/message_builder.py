@@ -74,7 +74,6 @@ def build_daily_summary_message(
             "",
             "🌤️ <b>Tiempo</b>",
             f"☁️ Cielo: {html.escape(str(sky_status))}",
-            "",
             f"🌡️ Máxima: {html.escape(max_temp)}",
             f"🌡️ Mínima: {html.escape(min_temp)}",
             f"🌧️ Lluvia máx.: {html.escape(rain_probability)}",

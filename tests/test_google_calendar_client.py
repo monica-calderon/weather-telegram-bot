@@ -56,15 +56,68 @@ def test_google_calendar_client_combines_and_sorts_multiple_calendars():
     assert [event["calendar"] for event in events] == ["Bubu", "Trabajo"]
 
 
+def test_google_calendar_client_uses_configured_calendar_names():
+    service = FakeCalendarService(
+        {
+            "abc123@group.calendar.google.com": [
+                {"summary": "Reu ODJ Visita Papa", "start": {"dateTime": "2026-05-27T17:30:00+02:00"}},
+            ],
+        }
+    )
+    client = GoogleCalendarClient.from_service(service)
+
+    events = client.get_events_remaining_today(
+        ("abc123@group.calendar.google.com",),
+        datetime(2026, 5, 27, 15, 0, tzinfo=ZoneInfo("Europe/Madrid")),
+        datetime(2026, 5, 27, 23, 59, tzinfo=ZoneInfo("Europe/Madrid")),
+        max_results=10,
+        calendar_names_by_id={"abc123@group.calendar.google.com": "Bubu"},
+    )
+
+    assert events[0]["calendar"] == "Bubu"
+
+
+def test_google_calendar_client_does_not_use_calendar_id_as_name():
+    service = FakeCalendarService(
+        {
+            "abc123@group.calendar.google.com": [
+                {"summary": "Reu ODJ Visita Papa", "start": {"dateTime": "2026-05-27T17:30:00+02:00"}},
+            ],
+        },
+        metadata_by_calendar={},
+    )
+    client = GoogleCalendarClient.from_service(service)
+
+    events = client.get_events_remaining_today(
+        ("abc123@group.calendar.google.com",),
+        datetime(2026, 5, 27, 15, 0, tzinfo=ZoneInfo("Europe/Madrid")),
+        datetime(2026, 5, 27, 23, 59, tzinfo=ZoneInfo("Europe/Madrid")),
+        max_results=10,
+    )
+
+    assert events[0]["calendar"] == ""
+
+
 class FakeCalendarService:
-    def __init__(self, events_by_calendar):
+    def __init__(self, events_by_calendar, metadata_by_calendar=None):
         self.events_by_calendar = events_by_calendar
         self.requested_calendar_id = None
+        self.requested_resource = None
+        self.metadata_by_calendar = metadata_by_calendar or {
+            "calendar-1": "Trabajo",
+            "calendar-2": "Bubu",
+        }
 
     def events(self):
+        self.requested_resource = "events"
         return self
 
     def calendarList(self):
+        self.requested_resource = "calendarList"
+        return self
+
+    def calendars(self):
+        self.requested_resource = "calendars"
         return self
 
     def get(self, **kwargs):
@@ -76,8 +129,7 @@ class FakeCalendarService:
         return self
 
     def execute(self):
-        if self.requested_calendar_id == "calendar-1":
-            return {"summary": "Trabajo", "items": self.events_by_calendar[self.requested_calendar_id]}
-        if self.requested_calendar_id == "calendar-2":
-            return {"summary": "Bubu", "items": self.events_by_calendar[self.requested_calendar_id]}
+        if self.requested_resource in {"calendarList", "calendars"}:
+            summary = self.metadata_by_calendar.get(self.requested_calendar_id)
+            return {"summary": summary} if summary else {}
         return {"items": self.events_by_calendar[self.requested_calendar_id]}

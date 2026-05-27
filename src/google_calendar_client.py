@@ -30,11 +30,13 @@ class GoogleCalendarClient:
         start: datetime,
         end: datetime,
         max_results: int = 10,
+        calendar_names_by_id: dict[str, str] | None = None,
     ) -> list[dict[str, str]]:
         events: list[dict[str, str]] = []
         for calendar_id in calendar_ids:
             try:
-                calendar_name = self._get_calendar_name(calendar_id)
+                configured_name = (calendar_names_by_id or {}).get(calendar_id)
+                calendar_name = self._get_calendar_name(calendar_id, configured_name)
                 response = (
                     self.service.events()
                     .list(
@@ -59,13 +61,28 @@ class GoogleCalendarClient:
 
         return sorted(events, key=lambda event: event["sort_key"])[:max_results]
 
-    def _get_calendar_name(self, calendar_id: str) -> str:
+    def _get_calendar_name(self, calendar_id: str, configured_name: str | None = None) -> str:
+        if configured_name and configured_name.strip():
+            return configured_name.strip()
+
+        summary = self._get_calendar_summary_from_resource("calendarList", calendar_id)
+        if summary:
+            return summary
+
+        summary = self._get_calendar_summary_from_resource("calendars", calendar_id)
+        if summary:
+            return summary
+
+        return ""
+
+    def _get_calendar_summary_from_resource(self, resource_name: str, calendar_id: str) -> str:
         try:
-            calendar = self.service.calendarList().get(calendarId=calendar_id).execute()
+            resource = getattr(self.service, resource_name)()
+            calendar = resource.get(calendarId=calendar_id).execute()
         except Exception:  # noqa: BLE001 - fallback to ID if metadata cannot be read.
-            return calendar_id
+            return ""
         summary = calendar.get("summary") if isinstance(calendar, dict) else None
-        return str(summary).strip() if summary else calendar_id
+        return str(summary).strip() if summary else ""
 
     def _build_service(self, service_account_json: str) -> Any:
         try:

@@ -34,6 +34,7 @@ class GoogleCalendarClient:
         events: list[dict[str, str]] = []
         for calendar_id in calendar_ids:
             try:
+                calendar_name = self._get_calendar_name(calendar_id)
                 response = (
                     self.service.events()
                     .list(
@@ -52,11 +53,19 @@ class GoogleCalendarClient:
                 ) from exc
 
             for item in response.get("items", []):
-                event = normalize_calendar_event(item)
+                event = normalize_calendar_event(item, calendar_name=calendar_name)
                 if event:
                     events.append(event)
 
         return sorted(events, key=lambda event: event["sort_key"])[:max_results]
+
+    def _get_calendar_name(self, calendar_id: str) -> str:
+        try:
+            calendar = self.service.calendarList().get(calendarId=calendar_id).execute()
+        except Exception:  # noqa: BLE001 - fallback to ID if metadata cannot be read.
+            return calendar_id
+        summary = calendar.get("summary") if isinstance(calendar, dict) else None
+        return str(summary).strip() if summary else calendar_id
 
     def _build_service(self, service_account_json: str) -> Any:
         try:
@@ -71,7 +80,9 @@ class GoogleCalendarClient:
             ) from exc
 
 
-def normalize_calendar_event(item: dict[str, Any]) -> dict[str, str] | None:
+def normalize_calendar_event(
+    item: dict[str, Any], *, calendar_name: str | None = None
+) -> dict[str, str] | None:
     if not isinstance(item, dict):
         return None
     start = item.get("start")
@@ -81,7 +92,12 @@ def normalize_calendar_event(item: dict[str, Any]) -> dict[str, str] | None:
     title = str(item.get("summary") or "Sin titulo").strip() or "Sin titulo"
     if start.get("date"):
         date = str(start["date"])
-        return {"time": "Todo el dia", "title": title, "sort_key": f"{date}T00:00:00"}
+        return {
+            "time": "Todo el dia",
+            "title": title,
+            "calendar": calendar_name or "",
+            "sort_key": f"{date}T00:00:00",
+        }
 
     date_time = start.get("dateTime")
     if not date_time:
@@ -90,6 +106,7 @@ def normalize_calendar_event(item: dict[str, Any]) -> dict[str, str] | None:
     return {
         "time": _format_event_time(text),
         "title": title,
+        "calendar": calendar_name or "",
         "sort_key": text,
     }
 

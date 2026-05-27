@@ -154,16 +154,16 @@ def test_build_daily_summary_message_includes_calendar_events():
     message = build_daily_summary_message(
         {
             "calendar_events": [
-                {"time": "18:30", "title": "Dentista"},
-                {"time": "Todo el dia", "title": "Cumpleanos"},
+                {"time": "18:30", "title": "Dentista", "calendar": "Bubu"},
+                {"time": "Todo el dia", "title": "Cumpleanos", "calendar": "Familia"},
             ]
         },
         "Alcala de Henares",
     )
 
     assert "<b>Próximos eventos</b>" in message
-    assert "• 18:30 Dentista" in message
-    assert "• Todo el dia Cumpleanos" in message
+    assert "• 18:30 Dentista - Bubu" in message
+    assert "• Todo el dia Cumpleanos - Familia" in message
 
 
 def test_build_daily_summary_message_includes_empty_calendar_message():

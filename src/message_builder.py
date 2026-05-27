@@ -68,11 +68,14 @@ def build_daily_summary_message(
         lines.append("📅 <b>Próximos eventos</b>")
         if calendar_events:
             for event in calendar_events:
+                calendar_name = str(event.get("calendar") or "").strip()
+                suffix = f" - {calendar_name}" if calendar_name else ""
                 lines.append(
                     "• "
                     + html.escape(str(event.get("time", "")))
                     + " "
                     + html.escape(str(event.get("title", "Sin titulo")))
+                    + html.escape(suffix)
                 )
         else:
             lines.append("Sin próximos eventos")

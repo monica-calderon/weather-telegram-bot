@@ -44,7 +44,6 @@ def run_bot(mode: str, config: Config) -> dict[str, int | str]:
     cache_notes: set[str] = set()
 
     if mode == "daily":
-        execution_time = _now(config.timezone)
         today_key = _today_key(config.timezone)
         normalized = dict(
             _get_cached_aemet_data(
@@ -76,13 +75,14 @@ def run_bot(mode: str, config: Config) -> dict[str, int | str]:
                 aemet,
                 config,
                 cache_notes,
-                now=execution_time,
+                now=_now(config.timezone),
             )
         )
+        message_time = _now(config.timezone)
         _apply_expected_current_temperature(
             normalized,
             config.timezone,
-            now=execution_time,
+            now=message_time,
         )
         normalized["daily_alerts"] = build_weather_alerts(
             normalized,
@@ -95,7 +95,7 @@ def run_bot(mode: str, config: Config) -> dict[str, int | str]:
         message = build_daily_summary_message(
             normalized,
             config.municipio_nombre,
-            current_time=execution_time.strftime("%H:%M"),
+            current_time=message_time.strftime("%H:%M"),
         )
         telegram.send_message(message)
         LOGGER.info("Resumen diario enviado.")

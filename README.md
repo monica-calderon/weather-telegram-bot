@@ -31,6 +31,12 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
+Para ejecutar tests en local, instala las dependencias de desarrollo:
+
+```bash
+pip install -r requirements-dev.txt
+```
+
 3. Crea tu `.env` desde el ejemplo:
 
 ```bash

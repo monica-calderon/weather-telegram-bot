@@ -96,7 +96,7 @@ def test_build_daily_summary_message_marks_forecast_current_temperature():
     assert "Actual: 22°C prev." in message
 
 
-def test_build_daily_summary_message_keeps_unavailable_current_temperature_short():
+def test_build_daily_summary_message_omits_unavailable_current_temperature():
     message = build_daily_summary_message(
         {
             "current_temp": None,
@@ -107,5 +107,31 @@ def test_build_daily_summary_message_keeps_unavailable_current_temperature_short
         "Alcala de Henares",
     )
 
-    assert "Actual: No disponible" in message
+    assert "Actual:" not in message
     assert "AEMET no tiene una observacion reciente" not in message
+
+
+def test_build_daily_summary_message_omits_zero_current_temperature():
+    message = build_daily_summary_message(
+        {
+            "current_temp": 0,
+        },
+        "Alcala de Henares",
+    )
+
+    assert "Actual:" not in message
+    assert "0°C" not in message
+
+
+def test_build_daily_summary_message_includes_open_meteo_note():
+    message = build_daily_summary_message(
+        {
+            "current_temp": 22.4,
+            "current_temp_source": "open-meteo",
+            "open_meteo_note": True,
+        },
+        "Alcala de Henares",
+    )
+
+    assert "Actual: 22.4°C" in message
+    assert "Nota: temperatura actual estimada con Open-Meteo." in message

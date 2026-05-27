@@ -15,6 +15,7 @@ from src.aemet_client import AemetClient, AemetClientError
 from src.aemet_cache import AemetCache
 from src.config import Config, ConfigError
 from src.message_builder import build_alert_message, build_daily_summary_message
+from src.open_meteo_client import OpenMeteoClient, OpenMeteoClientError
 from src.state_store import StateStore
 from src.telegram_client import TelegramClient, TelegramClientError
 from src.weather_rules import build_weather_alerts
@@ -39,6 +40,7 @@ def main(argv: list[str] | None = None) -> int:
 
 def run_bot(mode: str, config: Config) -> dict[str, int | str]:
     aemet = AemetClient(config.aemet_api_key)
+    open_meteo = OpenMeteoClient()
     telegram = TelegramClient(config.telegram_bot_token, config.telegram_chat_id)
     cache = AemetCache()
     cache_notes: set[str] = set()
@@ -83,6 +85,11 @@ def run_bot(mode: str, config: Config) -> dict[str, int | str]:
             normalized,
             config.timezone,
             now=message_time,
+        )
+        _apply_open_meteo_current_temperature(
+            normalized,
+            open_meteo,
+            config,
         )
         normalized["daily_alerts"] = build_weather_alerts(
             normalized,
@@ -319,20 +326,53 @@ def _apply_expected_current_temperature(
     *,
     now: datetime | None = None,
 ) -> None:
-    if summary.get("current_temp") is not None:
+    if _is_displayable_current_temperature(summary.get("current_temp")):
         summary["current_temp_source"] = summary.get("current_temp_source") or "observed"
         return
+    summary.pop("current_temp", None)
 
     expected = _expected_temperature_for_now(
         summary.get("hourly_temperatures"),
         timezone_name,
         now=now,
     )
-    if expected is None:
+    if not _is_displayable_current_temperature(expected):
         return
 
     summary["current_temp"] = expected
     summary["current_temp_source"] = "forecast"
+    summary.pop("current_temp_note", None)
+
+
+def _apply_open_meteo_current_temperature(
+    summary: dict[str, Any],
+    open_meteo: OpenMeteoClient,
+    config: Config,
+) -> None:
+    if _is_displayable_current_temperature(summary.get("current_temp")):
+        return
+    if config.open_meteo_latitude is None or config.open_meteo_longitude is None:
+        summary.pop("current_temp", None)
+        return
+
+    try:
+        temperature = open_meteo.get_current_temperature(
+            config.open_meteo_latitude,
+            config.open_meteo_longitude,
+            config.timezone,
+        )
+    except OpenMeteoClientError as exc:
+        LOGGER.warning("No se pudo obtener temperatura actual Open-Meteo: %s", exc)
+        summary.pop("current_temp", None)
+        return
+
+    if not _is_displayable_current_temperature(temperature):
+        summary.pop("current_temp", None)
+        return
+
+    summary["current_temp"] = temperature
+    summary["current_temp_source"] = "open-meteo"
+    summary["open_meteo_note"] = True
     summary.pop("current_temp_note", None)
 
 
@@ -363,6 +403,11 @@ def _expected_temperature_for_now(
         key=lambda item: abs((_period_hour(item.get("periodo")) or 0) * 60 - current_minutes),
     )
     return _to_number(best.get("value"))
+
+
+def _is_displayable_current_temperature(value: Any) -> bool:
+    number = _to_number(value)
+    return number is not None and number != 0
 
 
 def _is_recent_current_observation(

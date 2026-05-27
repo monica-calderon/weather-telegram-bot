@@ -46,12 +46,13 @@ def build_daily_summary_message(
         "",
         f"📍 {html.escape(municipio_nombre)}",
         f"☁️ Cielo: {html.escape(str(sky_status))}",
-        f"🌡️ Actual: {html.escape(current_temp)}",
         f"🌡️ Máxima: {html.escape(max_temp)}",
         f"🌡️ Mínima: {html.escape(min_temp)}",
         f"🌧️ Lluvia máx.: {html.escape(rain_probability)}",
         f"💨 Viento máx.: {html.escape(wind_kmh)}",
     ]
+    if current_temp:
+        lines.insert(4, f"🌡️ Actual: {html.escape(current_temp)}")
     if daily_alerts:
         lines.append("")
         lines.append("⚠️ <b>Avisos del día</b>")
@@ -63,6 +64,8 @@ def build_daily_summary_message(
             )
     if summary.get("cache_note"):
         lines.extend(["", "Nota: datos cacheados por límite temporal de AEMET."])
+    if summary.get("open_meteo_note"):
+        lines.extend(["", "Nota: temperatura actual estimada con Open-Meteo."])
     lines.extend(["", "Fuente: AEMET"])
     return "\n".join(lines)
 
@@ -74,6 +77,8 @@ def _format_value(value: Any, suffix: str) -> str:
 
 
 def _format_current_temperature(summary: dict[str, Any]) -> str:
+    if summary.get("current_temp") in (None, 0, 0.0):
+        return ""
     value = _format_value(summary.get("current_temp"), "°C")
     if value != "No disponible" and summary.get("current_temp_source") == "forecast":
         return f"{value} prev."

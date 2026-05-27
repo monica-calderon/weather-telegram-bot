@@ -6,6 +6,7 @@ from src.aemet_client import AemetClientError
 from src.config import Config
 from src.main import (
     _apply_expected_current_temperature,
+    _apply_open_meteo_current_temperature,
     _expected_temperature_for_now,
     _get_current_observation,
     normalize_current_observation,
@@ -274,6 +275,51 @@ def test_expected_current_temperature_falls_back_to_forecast():
     assert "current_temp_note" not in summary
 
 
+def test_expected_current_temperature_ignores_zero_forecast():
+    summary = {
+        "current_temp": None,
+        "hourly_temperatures": [{"periodo": "12", "value": 0}],
+    }
+
+    _apply_expected_current_temperature(
+        summary,
+        "Europe/Madrid",
+        now=datetime(2026, 5, 22, 12, 0, tzinfo=ZoneInfo("Europe/Madrid")),
+    )
+
+    assert "current_temp" not in summary
+
+
+def test_open_meteo_current_temperature_is_last_resort():
+    summary = {"current_temp": None}
+    open_meteo = FakeOpenMeteo(23.6)
+
+    _apply_open_meteo_current_temperature(summary, open_meteo, _config())
+
+    assert summary["current_temp"] == 23.6
+    assert summary["current_temp_source"] == "open-meteo"
+    assert summary["open_meteo_note"] is True
+
+
+def test_open_meteo_does_not_override_observed_temperature():
+    summary = {"current_temp": 21, "current_temp_source": "observed"}
+    open_meteo = FakeOpenMeteo(23.6)
+
+    _apply_open_meteo_current_temperature(summary, open_meteo, _config())
+
+    assert summary == {"current_temp": 21, "current_temp_source": "observed"}
+    assert open_meteo.calls == 0
+
+
+def test_open_meteo_ignores_zero_temperature():
+    summary = {"current_temp": None}
+    open_meteo = FakeOpenMeteo(0)
+
+    _apply_open_meteo_current_temperature(summary, open_meteo, _config())
+
+    assert "current_temp" not in summary
+
+
 class FakeAemet:
     def __init__(self, result):
         self.result = result
@@ -286,6 +332,16 @@ class FakeAemet:
         return self.result
 
 
+class FakeOpenMeteo:
+    def __init__(self, result):
+        self.result = result
+        self.calls = 0
+
+    def get_current_temperature(self, latitude, longitude, timezone_name):
+        self.calls += 1
+        return self.result
+
+
 def _config() -> Config:
     return Config(
         aemet_api_key="aemet",
@@ -294,4 +350,6 @@ def _config() -> Config:
         municipio_id="28005",
         municipio_nombre="Alcalá de Henares",
         current_observation_max_age_minutes=0,
+        open_meteo_latitude=40.4818,
+        open_meteo_longitude=-3.3643,
     )

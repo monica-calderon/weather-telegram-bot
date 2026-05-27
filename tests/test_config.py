@@ -17,6 +17,8 @@ def test_config_defaults_to_madrid_alert_area(monkeypatch):
     assert config.aemet_alert_area == "72"
     assert config.aemet_station_id == "3170Y"
     assert config.current_observation_max_age_minutes == 150
+    assert config.open_meteo_latitude == 40.4818
+    assert config.open_meteo_longitude == -3.3643
 
 
 def test_config_keeps_station_empty_for_unknown_municipality(monkeypatch):
@@ -30,3 +32,5 @@ def test_config_keeps_station_empty_for_unknown_municipality(monkeypatch):
     config = Config.from_env()
 
     assert config.aemet_station_id is None
+    assert config.open_meteo_latitude is None
+    assert config.open_meteo_longitude is None

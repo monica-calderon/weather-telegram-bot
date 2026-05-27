@@ -25,6 +25,8 @@ class Config:
     aemet_alert_area: str = "72"
     aemet_station_id: str | None = None
     current_observation_max_age_minutes: int = 150
+    open_meteo_latitude: float | None = None
+    open_meteo_longitude: float | None = None
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -59,6 +61,12 @@ class Config:
             current_observation_max_age_minutes=_int_env(
                 "CURRENT_OBSERVATION_MAX_AGE_MINUTES", 150
             ),
+            open_meteo_latitude=_coordinate_from_env(
+                "OPEN_METEO_LATITUDE", required["MUNICIPIO_ID"] or "", "latitude"
+            ),
+            open_meteo_longitude=_coordinate_from_env(
+                "OPEN_METEO_LONGITUDE", required["MUNICIPIO_ID"] or "", "longitude"
+            ),
         )
 
 
@@ -81,3 +89,20 @@ def _station_id_from_env(municipio_id: str) -> str | None:
         "28005": "3170Y",  # Alcala de Henares
     }
     return known_station_by_municipality.get(municipio_id)
+
+
+def _coordinate_from_env(name: str, municipio_id: str, coordinate: str) -> float | None:
+    configured = os.getenv(name)
+    if configured and configured.strip():
+        try:
+            return float(configured.strip())
+        except ValueError as exc:
+            raise ConfigError(f"{name} debe ser un numero decimal") from exc
+
+    known_coordinates_by_municipality = {
+        "28005": {"latitude": 40.4818, "longitude": -3.3643},
+    }
+    defaults = known_coordinates_by_municipality.get(municipio_id)
+    if not defaults:
+        return None
+    return defaults[coordinate]

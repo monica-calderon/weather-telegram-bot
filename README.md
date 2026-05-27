@@ -7,7 +7,7 @@ El proyecto esta preparado para ejecutarse en local con `.env` y en GitHub Actio
 ## Que hace
 
 - Consulta la prediccion diaria por municipio de AEMET OpenData.
-- Consulta observacion convencional de AEMET para incluir temperatura actual, con fallback a la temperatura prevista para la hora del resumen.
+- Consulta observacion convencional de AEMET para incluir temperatura actual, con fallback a prediccion AEMET y Open-Meteo como ultimo recurso.
 - Incluye estado de cielo previsto en el resumen diario.
 - Intenta consultar avisos oficiales AEMET.
 - Aplica reglas configurables por variables de entorno e incluye los avisos dentro del resumen diario.
@@ -59,6 +59,8 @@ COLD_TEMP_THRESHOLD=0
 AEMET_ALERT_AREA=72
 AEMET_STATION_ID=3170Y
 CURRENT_OBSERVATION_MAX_AGE_MINUTES=150
+OPEN_METEO_LATITUDE=40.4818
+OPEN_METEO_LONGITUDE=-3.3643
 ```
 
 ## Crear bot de Telegram
@@ -110,15 +112,17 @@ Resumen diario:
 python -m src.main daily
 ```
 
-En el resumen diario, `Actual` usa la ultima observacion disponible de AEMET; si no existe, muestra la temperatura prevista para la hora del resumen con el sufijo `prev.`. `Lluvia máx.` y `Viento máx.` no son valores actuales ni medias: son el valor maximo previsto por AEMET para algun tramo del dia. Si las reglas detectan lluvia, viento, calor, frio/helada o avisos oficiales, el resumen añade la seccion `Avisos del día` con el detalle y, cuando AEMET lo publica, el tramo horario afectado.
+En el resumen diario, `Actual` usa la ultima observacion disponible de AEMET; si no existe, muestra la temperatura prevista para la hora del resumen con el sufijo `prev.`; y, como ultimo recurso, consulta Open-Meteo por coordenadas. Nunca se muestra `Actual: No disponible` ni `Actual: 0°C`; si no hay dato util, se omite la linea. `Lluvia máx.` y `Viento máx.` no son valores actuales ni medias: son el valor maximo previsto por AEMET para algun tramo del dia. Si las reglas detectan lluvia, viento, calor, frio/helada o avisos oficiales, el resumen añade la seccion `Avisos del día` con el detalle y, cuando AEMET lo publica, el tramo horario afectado.
 
 Para reducir errores `429 Too Many Requests`, el workflow guarda una cache persistente y minima en la rama `bot-state`:
 
 - Prediccion municipal: se consulta como maximo una vez al dia y se guarda ya normalizada, incluyendo temperaturas por hora para calcular `Actual` si falta observacion real.
 - Avisos oficiales: se consultan como maximo una vez al dia y se guardan ya normalizados.
 - Observacion actual: se consulta en cada resumen; solo se usa cache si AEMET limita la API. La hora de la observacion se convierte a `TIMEZONE` y no se muestra como actual si supera `CURRENT_OBSERVATION_MAX_AGE_MINUTES`.
+- Open-Meteo: se consulta solo como ultimo recurso para temperatura actual estimada.
 
 Si un resumen usa cache por limite temporal de AEMET, el mensaje incluye la nota `datos cacheados por límite temporal de AEMET`.
+Si la temperatura actual viene de Open-Meteo, el mensaje incluye la nota `temperatura actual estimada con Open-Meteo`.
 
 Tests:
 
@@ -148,6 +152,7 @@ Configura estas `Variables` del repositorio:
 - `AEMET_ALERT_AREA` opcional, por defecto `72` para Comunidad de Madrid.
 - `AEMET_STATION_ID` opcional. Si lo configuras, se usa esa estacion AEMET para la temperatura actual. Para Alcala de Henares se recomienda `3170Y`; si `MUNICIPIO_ID=28005` y lo dejas vacio, el bot usa ese valor por defecto. Para otros municipios, si lo dejas vacio, el bot intenta encontrar una observacion cuyo nombre coincida con `MUNICIPIO_NOMBRE`.
 - `CURRENT_OBSERVATION_MAX_AGE_MINUTES` opcional, por defecto `150`. Evita mostrar como actual una observacion de AEMET demasiado antigua.
+- `OPEN_METEO_LATITUDE` y `OPEN_METEO_LONGITUDE` opcionales. Para Alcala de Henares se usan por defecto `40.4818` y `-3.3643`.
 
 Hay dos workflows:
 
@@ -220,6 +225,7 @@ Los umbrales se cambian con variables del repositorio o en `.env` para local:
 - `AEMET_ALERT_AREA`: area de avisos oficiales. `72` es Comunidad de Madrid.
 - `AEMET_STATION_ID`: estacion AEMET para temperatura actual, opcional. Para Alcala de Henares usa `3170Y`.
 - `CURRENT_OBSERVATION_MAX_AGE_MINUTES`: antiguedad maxima aceptada para la observacion actual, por defecto `150`.
+- `OPEN_METEO_LATITUDE` y `OPEN_METEO_LONGITUDE`: coordenadas para Open-Meteo como ultimo recurso.
 
 ## Privacidad y seguridad
 

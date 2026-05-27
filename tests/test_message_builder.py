@@ -70,7 +70,8 @@ def test_build_daily_summary_message_contains_expected_values():
 
     assert "☀️ <b>Resumen diario</b> 09:00" in message
     assert "Cielo: Poco nuboso" in message
-    assert "Actual: 21°C (12:50, Alcala de Henares)" in message
+    assert "Actual: 21°C" in message
+    assert "12:50" not in message
     assert "Máxima: 31°C" in message
     assert "Mínima: 18°C" in message
     assert "Lluvia máx.: 60%" in message
@@ -83,7 +84,19 @@ def test_build_daily_summary_message_contains_expected_values():
     assert "Nota: datos cacheados por límite temporal de AEMET." in message
 
 
-def test_build_daily_summary_message_explains_stale_current_temperature():
+def test_build_daily_summary_message_marks_forecast_current_temperature():
+    message = build_daily_summary_message(
+        {
+            "current_temp": 22,
+            "current_temp_source": "forecast",
+        },
+        "Alcala de Henares",
+    )
+
+    assert "Actual: 22°C prev." in message
+
+
+def test_build_daily_summary_message_keeps_unavailable_current_temperature_short():
     message = build_daily_summary_message(
         {
             "current_temp": None,
@@ -94,7 +107,5 @@ def test_build_daily_summary_message_explains_stale_current_temperature():
         "Alcala de Henares",
     )
 
-    assert (
-        "Actual: No disponible (08:00, Alcala de Henares, "
-        "AEMET no tiene una observacion reciente)"
-    ) in message
+    assert "Actual: No disponible" in message
+    assert "AEMET no tiene una observacion reciente" not in message

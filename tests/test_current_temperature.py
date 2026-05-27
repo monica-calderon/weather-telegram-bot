@@ -5,6 +5,8 @@ from src.aemet_cache import AemetCache
 from src.aemet_client import AemetClientError
 from src.config import Config
 from src.main import (
+    _apply_expected_current_temperature,
+    _expected_temperature_for_now,
     _get_current_observation,
     normalize_current_observation,
     normalize_current_temperature,
@@ -156,6 +158,58 @@ def test_current_observation_uses_normalized_cache_on_rate_limit(tmp_path):
 
     assert result == cached
     assert cache_notes == {"current-observation:alcala de henares"}
+
+
+def test_expected_temperature_for_now_uses_nearest_forecast_hour():
+    result = _expected_temperature_for_now(
+        [
+            {"periodo": "06", "value": 14},
+            {"periodo": "12", "value": 22},
+            {"periodo": "18", "value": 25},
+        ],
+        "Europe/Madrid",
+        now=datetime(2026, 5, 22, 14, 30, tzinfo=ZoneInfo("Europe/Madrid")),
+    )
+
+    assert result == 22
+
+
+def test_expected_current_temperature_keeps_observed_value():
+    summary = {
+        "current_temp": 21,
+        "hourly_temperatures": [{"periodo": "12", "value": 25}],
+    }
+
+    _apply_expected_current_temperature(
+        summary,
+        "Europe/Madrid",
+        now=datetime(2026, 5, 22, 12, 0, tzinfo=ZoneInfo("Europe/Madrid")),
+    )
+
+    assert summary["current_temp"] == 21
+    assert summary["current_temp_source"] == "observed"
+
+
+def test_expected_current_temperature_falls_back_to_forecast():
+    summary = {
+        "current_temp": None,
+        "current_temp_note": "AEMET no tiene una observacion reciente",
+        "hourly_temperatures": [
+            {"periodo": "06", "value": 14},
+            {"periodo": "12", "value": 22},
+            {"periodo": "18", "value": 25},
+        ],
+    }
+
+    _apply_expected_current_temperature(
+        summary,
+        "Europe/Madrid",
+        now=datetime(2026, 5, 22, 11, 20, tzinfo=ZoneInfo("Europe/Madrid")),
+    )
+
+    assert summary["current_temp"] == 22
+    assert summary["current_temp_source"] == "forecast"
+    assert "current_temp_note" not in summary
 
 
 class FakeAemet:

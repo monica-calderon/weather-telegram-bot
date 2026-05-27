@@ -48,7 +48,7 @@ def run_bot(mode: str, config: Config) -> dict[str, int | str]:
         normalized = dict(
             _get_cached_aemet_data(
                 cache,
-                key=f"forecast-summary:{config.municipio_id}",
+                key=f"forecast-summary-v2:{config.municipio_id}",
                 fetch=lambda: normalize_forecast(
                     aemet.get_municipality_forecast(config.municipio_id),
                     config.municipio_nombre,
@@ -76,6 +76,10 @@ def run_bot(mode: str, config: Config) -> dict[str, int | str]:
                 config,
                 cache_notes,
             )
+        )
+        _apply_expected_current_temperature(
+            normalized,
+            config.timezone,
         )
         normalized["daily_alerts"] = build_weather_alerts(
             normalized,
@@ -290,6 +294,58 @@ def normalize_current_observation(
     }
 
 
+def _apply_expected_current_temperature(
+    summary: dict[str, Any],
+    timezone_name: str,
+    *,
+    now: datetime | None = None,
+) -> None:
+    if summary.get("current_temp") is not None:
+        summary["current_temp_source"] = summary.get("current_temp_source") or "observed"
+        return
+
+    expected = _expected_temperature_for_now(
+        summary.get("hourly_temperatures"),
+        timezone_name,
+        now=now,
+    )
+    if expected is None:
+        return
+
+    summary["current_temp"] = expected
+    summary["current_temp_source"] = "forecast"
+    summary.pop("current_temp_note", None)
+
+
+def _expected_temperature_for_now(
+    hourly_temperatures: Any,
+    timezone_name: str,
+    *,
+    now: datetime | None = None,
+) -> int | float | None:
+    if not isinstance(hourly_temperatures, list):
+        return None
+
+    candidates = [
+        item
+        for item in hourly_temperatures
+        if isinstance(item, dict)
+        and _to_number(item.get("value")) is not None
+        and _period_hour(item.get("periodo")) is not None
+    ]
+    if not candidates:
+        return None
+
+    tz = _load_timezone(timezone_name)
+    current = now.astimezone(tz) if now else datetime.now(tz)
+    current_minutes = current.hour * 60 + current.minute
+    best = min(
+        candidates,
+        key=lambda item: abs((_period_hour(item.get("periodo")) or 0) * 60 - current_minutes),
+    )
+    return _to_number(best.get("value"))
+
+
 def _format_observation_time(value: Any, tz: ZoneInfo) -> str | None:
     observed_at = _parse_observation_datetime(value)
     if observed_at:
@@ -344,6 +400,9 @@ def normalize_forecast(forecast: Any, municipio_nombre: str) -> dict[str, Any]:
         "date": day.get("fecha"),
         "max_temp": _to_number(_nested_get(day, ["temperatura", "maxima"])),
         "min_temp": _to_number(_nested_get(day, ["temperatura", "minima"])),
+        "hourly_temperatures": _hourly_temperatures(
+            _nested_get(day, ["temperatura", "dato"])
+        ),
         "rain_probability": _max_period_value(day.get("probPrecipitacion", [])),
         "rain_period": _period_for_max_value(day.get("probPrecipitacion", [])),
         "wind_kmh": _max_wind(day.get("viento", [])),
@@ -544,6 +603,29 @@ def _format_period(period: Any) -> str:
     if len(text) == 4 and text.isdigit():
         return f"entre {text[:2]}:00 y {text[2:]}:00"
     return text
+
+
+def _hourly_temperatures(items: Any) -> list[dict[str, int | float | str]]:
+    normalized = []
+    for item in items if isinstance(items, list) else []:
+        if not isinstance(item, dict):
+            continue
+        value = _to_number(item.get("value"))
+        hour = _period_hour(item.get("hora") or item.get("periodo"))
+        if value is None or hour is None:
+            continue
+        normalized.append({"periodo": f"{hour:02d}", "value": value})
+    return normalized
+
+
+def _period_hour(period: Any) -> int | None:
+    if period in (None, ""):
+        return None
+    text = str(period).strip()
+    if text.isdigit():
+        hour = int(text[:2] if len(text) >= 2 else text)
+        return hour if 0 <= hour <= 23 else None
+    return None
 
 
 def _first_sky_status(items: Any) -> str | None:

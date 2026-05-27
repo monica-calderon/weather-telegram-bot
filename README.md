@@ -7,7 +7,7 @@ El proyecto esta preparado para ejecutarse en local con `.env` y en GitHub Actio
 ## Que hace
 
 - Consulta la prediccion diaria por municipio de AEMET OpenData.
-- Consulta observacion convencional de AEMET para incluir temperatura actual.
+- Consulta observacion convencional de AEMET para incluir temperatura actual, con fallback a la temperatura prevista para la hora del resumen.
 - Incluye estado de cielo previsto en el resumen diario.
 - Intenta consultar avisos oficiales AEMET.
 - Aplica reglas configurables por variables de entorno e incluye los avisos dentro del resumen diario.
@@ -104,11 +104,11 @@ Resumen diario:
 python -m src.main daily
 ```
 
-En el resumen diario, `Lluvia máx.` y `Viento máx.` no son valores actuales ni medias: son el valor maximo previsto por AEMET para algun tramo del dia. Si las reglas detectan lluvia, viento, calor, frio/helada o avisos oficiales, el resumen añade la seccion `Avisos del día` con el detalle y, cuando AEMET lo publica, el tramo horario afectado.
+En el resumen diario, `Actual` usa la ultima observacion disponible de AEMET; si no existe, muestra la temperatura prevista para la hora del resumen con el sufijo `prev.`. `Lluvia máx.` y `Viento máx.` no son valores actuales ni medias: son el valor maximo previsto por AEMET para algun tramo del dia. Si las reglas detectan lluvia, viento, calor, frio/helada o avisos oficiales, el resumen añade la seccion `Avisos del día` con el detalle y, cuando AEMET lo publica, el tramo horario afectado.
 
 Para reducir errores `429 Too Many Requests`, el workflow guarda una cache persistente y minima en la rama `bot-state`:
 
-- Prediccion municipal: se consulta como maximo una vez al dia y se guarda ya normalizada.
+- Prediccion municipal: se consulta como maximo una vez al dia y se guarda ya normalizada, incluyendo temperaturas por hora para calcular `Actual` si falta observacion real.
 - Avisos oficiales: se consultan como maximo una vez al dia y se guardan ya normalizados.
 - Observacion actual: se consulta en cada resumen; solo se usa cache si AEMET limita la API. La hora de la observacion se convierte a `TIMEZONE` y no se muestra como actual si supera `CURRENT_OBSERVATION_MAX_AGE_MINUTES`.
 

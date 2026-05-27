@@ -8,7 +8,15 @@ def test_normalize_forecast_includes_max_periods_and_sky_status():
                 "dia": [
                     {
                         "fecha": "2026-05-22",
-                        "temperatura": {"maxima": 28, "minima": 14},
+                        "temperatura": {
+                            "maxima": 28,
+                            "minima": 14,
+                            "dato": [
+                                {"value": 14, "hora": 6},
+                                {"value": 24, "hora": 12},
+                                {"value": 27, "hora": 18},
+                            ],
+                        },
                         "probPrecipitacion": [
                             {"value": 20, "periodo": "0006"},
                             {"value": 70, "periodo": "1218"},
@@ -33,3 +41,8 @@ def test_normalize_forecast_includes_max_periods_and_sky_status():
     assert normalized["wind_kmh"] == 55
     assert normalized["wind_period"] == "entre 18:00 y 24:00"
     assert normalized["sky_status"] == "Poco nuboso"
+    assert normalized["hourly_temperatures"] == [
+        {"periodo": "06", "value": 14},
+        {"periodo": "12", "value": 24},
+        {"periodo": "18", "value": 27},
+    ]

@@ -173971,5 +173971,14 @@
       "sky_status": "Nubes altas"
     },
     "cache_date": "2026-05-27"
+  },
+  "current-observation:3170Y": {
+    "fetched_at": "2026-05-27T08:41:51.246407+00:00",
+    "value": {
+      "current_temp": 21.3,
+      "current_temp_time": "10:00",
+      "current_temp_station": "ALCALA DE HENARES-ENCÍN",
+      "current_temp_observed_at": "2026-05-27T10:00:00+02:00"
+    }
   }
 }

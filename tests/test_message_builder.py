@@ -148,3 +148,32 @@ def test_build_daily_summary_message_omits_measurement_time_when_missing():
 
     assert "Actual: 22.4°C" in message
     assert "Actual: 22.4°C (" not in message
+
+
+def test_build_daily_summary_message_includes_calendar_events():
+    message = build_daily_summary_message(
+        {
+            "calendar_events": [
+                {"time": "18:30", "title": "Dentista"},
+                {"time": "Todo el dia", "title": "Cumpleanos"},
+            ]
+        },
+        "Alcala de Henares",
+    )
+
+    assert "<b>Próximos eventos</b>" in message
+    assert "• 18:30 Dentista" in message
+    assert "• Todo el dia Cumpleanos" in message
+
+
+def test_build_daily_summary_message_includes_empty_calendar_message():
+    message = build_daily_summary_message({"calendar_events": []}, "Alcala de Henares")
+
+    assert "<b>Próximos eventos</b>" in message
+    assert "Sin próximos eventos" in message
+
+
+def test_build_daily_summary_message_includes_calendar_error_note():
+    message = build_daily_summary_message({"calendar_error": True}, "Alcala de Henares")
+
+    assert "Nota: no se pudieron obtener eventos de Google Calendar." in message

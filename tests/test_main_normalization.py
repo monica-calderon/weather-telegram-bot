@@ -1,7 +1,10 @@
 import io
+from datetime import datetime
 from zipfile import ZIP_DEFLATED, ZipFile
 
-from src.main import normalize_official_alerts
+from src.config import Config
+from src.google_calendar_client import GoogleCalendarClientError
+from src.main import _get_calendar_summary, normalize_official_alerts
 
 
 def test_normalize_official_alerts_from_cap_xml():
@@ -60,3 +63,29 @@ def test_normalize_official_alerts_from_cap_zip():
             "dedupe_key": "aemet-456-amarillo-Viento-2026-05-21T21:00:00+02:00",
         }
     ]
+
+
+def test_calendar_failure_returns_error_flag(monkeypatch):
+    class FailingCalendarClient:
+        def __init__(self, service_account_json):
+            pass
+
+        def get_events_remaining_today(self, *args, **kwargs):
+            raise GoogleCalendarClientError("boom")
+
+    monkeypatch.setattr("src.main.GoogleCalendarClient", FailingCalendarClient)
+
+    result = _get_calendar_summary(
+        Config(
+            aemet_api_key="aemet",
+            telegram_bot_token="telegram",
+            telegram_chat_id="chat",
+            municipio_id="28005",
+            municipio_nombre="Alcala",
+            google_service_account_json='{"type":"service_account"}',
+            google_calendar_ids=("calendar@example.com",),
+        ),
+        datetime(2026, 5, 27, 9, 0),
+    )
+
+    assert result == {"calendar_error": True}

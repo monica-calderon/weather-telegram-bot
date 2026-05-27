@@ -38,6 +38,7 @@ def build_daily_summary_message(
     wind_kmh = _format_value(summary.get("wind_kmh"), " km/h")
     sky_status = summary.get("sky_status") or "No disponible"
     daily_alerts = summary.get("daily_alerts") or []
+    calendar_events = summary.get("calendar_events")
     title = "☀️ <b>Resumen diario</b>"
     if current_time:
         title = f"{title} {html.escape(current_time)}"
@@ -62,10 +63,25 @@ def build_daily_summary_message(
             lines.append(
                 f"• {html.escape(str(title_text))}: {html.escape(str(description))}"
             )
+    if isinstance(calendar_events, list):
+        lines.append("")
+        lines.append("📅 <b>Próximos eventos</b>")
+        if calendar_events:
+            for event in calendar_events:
+                lines.append(
+                    "• "
+                    + html.escape(str(event.get("time", "")))
+                    + " "
+                    + html.escape(str(event.get("title", "Sin titulo")))
+                )
+        else:
+            lines.append("Sin próximos eventos")
     if summary.get("cache_note"):
         lines.extend(["", "Nota: datos cacheados por límite temporal de AEMET."])
     if summary.get("open_meteo_note"):
         lines.extend(["", "Nota: temperatura actual estimada con Open-Meteo."])
+    if summary.get("calendar_error"):
+        lines.extend(["", "Nota: no se pudieron obtener eventos de Google Calendar."])
     lines.extend(["", "Fuente: AEMET"])
     return "\n".join(lines)
 

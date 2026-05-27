@@ -5,7 +5,7 @@ import io
 import logging
 import sys
 from collections.abc import Callable
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, time, timedelta, timezone
 from typing import Any
 from xml.etree import ElementTree
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -14,6 +14,7 @@ from zipfile import BadZipFile, ZipFile
 from src.aemet_client import AemetClient, AemetClientError
 from src.aemet_cache import AemetCache
 from src.config import Config, ConfigError
+from src.google_calendar_client import GoogleCalendarClient, GoogleCalendarClientError
 from src.message_builder import build_alert_message, build_daily_summary_message
 from src.open_meteo_client import OpenMeteoClient, OpenMeteoClientError
 from src.state_store import StateStore
@@ -91,6 +92,7 @@ def run_bot(mode: str, config: Config) -> dict[str, int | str]:
             open_meteo,
             config,
         )
+        normalized.update(_get_calendar_summary(config, message_time))
         normalized["daily_alerts"] = build_weather_alerts(
             normalized,
             rain_prob_threshold=config.rain_prob_threshold,
@@ -144,6 +146,26 @@ def run_bot(mode: str, config: Config) -> dict[str, int | str]:
 
     LOGGER.info("Alertas detectadas=%s, enviadas=%s", len(alerts), sent)
     return {"mode": "alerts", "detected": len(alerts), "sent": sent}
+
+
+def _get_calendar_summary(config: Config, start: datetime) -> dict[str, Any]:
+    if not config.google_service_account_json or not config.google_calendar_ids:
+        return {}
+
+    end = datetime.combine(start.date(), time.max, tzinfo=start.tzinfo)
+    try:
+        client = GoogleCalendarClient(config.google_service_account_json)
+        events = client.get_events_remaining_today(
+            config.google_calendar_ids,
+            start,
+            end,
+            max_results=config.calendar_events_max,
+        )
+    except GoogleCalendarClientError as exc:
+        LOGGER.warning("No se pudieron obtener eventos de Google Calendar: %s", exc)
+        return {"calendar_error": True}
+
+    return {"calendar_events": events}
 
 
 def _get_current_observation(

@@ -27,6 +27,9 @@ class Config:
     current_observation_max_age_minutes: int = 150
     open_meteo_latitude: float | None = None
     open_meteo_longitude: float | None = None
+    google_service_account_json: str | None = None
+    google_calendar_ids: tuple[str, ...] = ()
+    calendar_events_max: int = 10
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -67,6 +70,9 @@ class Config:
             open_meteo_longitude=_coordinate_from_env(
                 "OPEN_METEO_LONGITUDE", required["MUNICIPIO_ID"] or "", "longitude"
             ),
+            google_service_account_json=_optional_env("GOOGLE_SERVICE_ACCOUNT_JSON"),
+            google_calendar_ids=_csv_env("GOOGLE_CALENDAR_IDS"),
+            calendar_events_max=_int_env("CALENDAR_EVENTS_MAX", 10),
         )
 
 
@@ -78,6 +84,20 @@ def _int_env(name: str, default: int) -> int:
         return int(value)
     except ValueError as exc:
         raise ConfigError(f"{name} debe ser un numero entero, recibido: {value}") from exc
+
+
+def _optional_env(name: str) -> str | None:
+    value = os.getenv(name)
+    if value is None or not value.strip():
+        return None
+    return value.strip()
+
+
+def _csv_env(name: str) -> tuple[str, ...]:
+    value = os.getenv(name)
+    if value is None or not value.strip():
+        return ()
+    return tuple(item.strip() for item in value.split(",") if item.strip())
 
 
 def _station_id_from_env(municipio_id: str) -> str | None:

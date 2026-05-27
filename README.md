@@ -9,6 +9,7 @@ El proyecto esta preparado para ejecutarse en local con `.env` y en GitHub Actio
 - Consulta la prediccion diaria por municipio de AEMET OpenData.
 - Consulta observacion convencional de AEMET para incluir temperatura actual, con fallback a prediccion AEMET y Open-Meteo como ultimo recurso.
 - Incluye estado de cielo previsto en el resumen diario.
+- Incluye los proximos eventos de Google Calendar si lo configuras.
 - Intenta consultar avisos oficiales AEMET.
 - Aplica reglas configurables por variables de entorno e incluye los avisos dentro del resumen diario.
 - Reutiliza datos cacheados para reducir llamadas a AEMET y resistir limites temporales de la API.
@@ -61,6 +62,9 @@ AEMET_STATION_ID=3170Y
 CURRENT_OBSERVATION_MAX_AGE_MINUTES=150
 OPEN_METEO_LATITUDE=40.4818
 OPEN_METEO_LONGITUDE=-3.3643
+GOOGLE_SERVICE_ACCOUNT_JSON={"type":"service_account","project_id":"..."}
+GOOGLE_CALENDAR_IDS=calendario1@gmail.com,abc123@group.calendar.google.com
+CALENDAR_EVENTS_MAX=10
 ```
 
 ## Crear bot de Telegram
@@ -124,6 +128,8 @@ Para reducir errores `429 Too Many Requests`, el workflow guarda una cache persi
 Si un resumen usa cache por limite temporal de AEMET, el mensaje incluye la nota `datos cacheados por límite temporal de AEMET`.
 Si la temperatura actual viene de Open-Meteo, el mensaje incluye la nota `temperatura actual estimada con Open-Meteo`.
 
+Si configuras Google Calendar, el resumen añade `Proximos eventos` con los eventos restantes del dia, desde la hora del resumen hasta las 23:59 en `TIMEZONE`.
+
 Tests:
 
 ```bash
@@ -139,6 +145,7 @@ Configura estos `Secrets` en tu repositorio:
 - `AEMET_API_KEY`
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_CHAT_ID`
+- `GOOGLE_SERVICE_ACCOUNT_JSON` opcional, JSON completo de la service account de Google.
 
 Configura estas `Variables` del repositorio:
 
@@ -153,6 +160,8 @@ Configura estas `Variables` del repositorio:
 - `AEMET_STATION_ID` opcional. Si lo configuras, se usa esa estacion AEMET para la temperatura actual. Para Alcala de Henares se recomienda `3170Y`; si `MUNICIPIO_ID=28005` y lo dejas vacio, el bot usa ese valor por defecto. Para otros municipios, si lo dejas vacio, el bot intenta encontrar una observacion cuyo nombre coincida con `MUNICIPIO_NOMBRE`.
 - `CURRENT_OBSERVATION_MAX_AGE_MINUTES` opcional, por defecto `150`. Evita mostrar como actual una observacion de AEMET demasiado antigua.
 - `OPEN_METEO_LATITUDE` y `OPEN_METEO_LONGITUDE` opcionales. Para Alcala de Henares se usan por defecto `40.4818` y `-3.3643`.
+- `GOOGLE_CALENDAR_IDS` opcional, IDs de calendarios separados por coma.
+- `CALENDAR_EVENTS_MAX` opcional, por defecto `10`.
 
 Hay dos workflows:
 
@@ -160,6 +169,108 @@ Hay dos workflows:
 - `CI`: ejecuta los tests con `pytest` en cada push, pull request o manualmente.
 
 Las notificaciones programadas quedan delegadas a cron-job.org. GitHub Actions ejecuta el codigo cuando cron-job.org llama a la API de GitHub.
+
+## Google Calendar
+
+La integracion usa una service account de Google Cloud. Es la opcion mas estable para GitHub Actions porque no requiere iniciar sesion manualmente ni renovar tokens OAuth.
+
+### 1. Crear credenciales en Google Cloud
+
+1. Entra en [Google Cloud Console](https://console.cloud.google.com/).
+2. Crea o selecciona un proyecto.
+3. Ve a `APIs y servicios` -> `Biblioteca`.
+4. Busca `Google Calendar API` y pulsa `Habilitar`.
+5. Ve a `APIs y servicios` -> `Credenciales`.
+6. Pulsa `Crear credenciales` -> `Cuenta de servicio`.
+7. Ponle un nombre, por ejemplo `weather-telegram-bot`.
+8. Abre la cuenta de servicio creada.
+9. Entra en `Claves` -> `Agregar clave` -> `Crear clave nueva`.
+10. Elige `JSON` y descarga el archivo.
+
+Ese archivo JSON completo sera el valor de `GOOGLE_SERVICE_ACCOUNT_JSON`. No lo subas al repositorio.
+
+### 2. Compartir calendarios con la service account
+
+1. Abre el JSON descargado.
+2. Copia el valor de `client_email`; tendra forma parecida a:
+
+```text
+weather-telegram-bot@tu-proyecto.iam.gserviceaccount.com
+```
+
+3. Abre [Google Calendar](https://calendar.google.com/).
+4. En la barra izquierda, pasa el raton sobre el calendario que quieras leer.
+5. Pulsa `...` -> `Configuracion y uso compartido`.
+6. En `Compartir con personas o grupos especificos`, añade el `client_email`.
+7. Dale permiso `Ver todos los detalles del evento`.
+8. Repite el proceso para cada calendario que quieras incluir.
+
+### 3. Obtener IDs de calendario
+
+Para cada calendario:
+
+1. Google Calendar -> `Configuracion y uso compartido`.
+2. Baja hasta `Integrar calendario`.
+3. Copia `ID del calendario`.
+
+Puede ser un email, por ejemplo:
+
+```text
+tu-correo@gmail.com
+```
+
+O un ID largo, por ejemplo:
+
+```text
+abc123@group.calendar.google.com
+```
+
+Si quieres varios calendarios, ponlos separados por coma en `GOOGLE_CALENDAR_IDS`.
+
+### 4. Guardar en GitHub
+
+En tu repositorio de GitHub:
+
+1. Ve a `Settings` -> `Secrets and variables` -> `Actions`.
+2. En `Secrets`, crea:
+
+```text
+GOOGLE_SERVICE_ACCOUNT_JSON
+```
+
+Pega como valor el contenido completo del JSON descargado.
+
+3. En `Variables`, crea:
+
+```text
+GOOGLE_CALENDAR_IDS
+```
+
+Ejemplo:
+
+```text
+tu-correo@gmail.com,abc123@group.calendar.google.com
+```
+
+4. Opcionalmente, crea:
+
+```text
+CALENDAR_EVENTS_MAX=10
+```
+
+### 5. Configurar en local
+
+En `.env`, puedes usar las mismas variables:
+
+```env
+GOOGLE_SERVICE_ACCOUNT_JSON={"type":"service_account","project_id":"..."}
+GOOGLE_CALENDAR_IDS=tu-correo@gmail.com,abc123@group.calendar.google.com
+CALENDAR_EVENTS_MAX=10
+```
+
+Si el JSON te da problemas en `.env` por comillas o saltos de linea, prueba primero desde GitHub Actions, donde el secret acepta el JSON completo mejor. En local tambien puedes pegarlo en una sola linea.
+
+Si Google Calendar falla, el bot envia igualmente el resumen meteorologico y añade una nota indicando que no se pudieron obtener eventos.
 
 ## cron-job.org + GitHub Actions
 
@@ -226,11 +337,14 @@ Los umbrales se cambian con variables del repositorio o en `.env` para local:
 - `AEMET_STATION_ID`: estacion AEMET para temperatura actual, opcional. Para Alcala de Henares usa `3170Y`.
 - `CURRENT_OBSERVATION_MAX_AGE_MINUTES`: antiguedad maxima aceptada para la observacion actual, por defecto `150`.
 - `OPEN_METEO_LATITUDE` y `OPEN_METEO_LONGITUDE`: coordenadas para Open-Meteo como ultimo recurso.
+- `GOOGLE_CALENDAR_IDS`: calendarios de Google separados por coma para mostrar `Proximos eventos`.
+- `CALENDAR_EVENTS_MAX`: maximo de eventos a mostrar, por defecto `10`.
 
 ## Privacidad y seguridad
 
 - No subas `.env`.
 - No subas tokens ni claves API.
+- No subas el JSON de la service account de Google.
 - Si el repositorio es publico, cualquier archivo generado y subido al repo sera publico.
 - El estado `.state/` esta ignorado por Git.
 - La rama `bot-state` guarda `aemet_cache.json` para reducir llamadas a AEMET. No contiene tokens; guarda prediccion/avisos normalizados y la ultima observacion seleccionada.

@@ -44,6 +44,7 @@ def run_bot(mode: str, config: Config) -> dict[str, int | str]:
     cache_notes: set[str] = set()
 
     if mode == "daily":
+        execution_time = _now(config.timezone)
         today_key = _today_key(config.timezone)
         normalized = dict(
             _get_cached_aemet_data(
@@ -75,11 +76,13 @@ def run_bot(mode: str, config: Config) -> dict[str, int | str]:
                 aemet,
                 config,
                 cache_notes,
+                now=execution_time,
             )
         )
         _apply_expected_current_temperature(
             normalized,
             config.timezone,
+            now=execution_time,
         )
         normalized["daily_alerts"] = build_weather_alerts(
             normalized,
@@ -92,7 +95,7 @@ def run_bot(mode: str, config: Config) -> dict[str, int | str]:
         message = build_daily_summary_message(
             normalized,
             config.municipio_nombre,
-            current_time=_current_time(config.timezone),
+            current_time=execution_time.strftime("%H:%M"),
         )
         telegram.send_message(message)
         LOGGER.info("Resumen diario enviado.")
@@ -141,6 +144,8 @@ def _get_current_observation(
     aemet: AemetClient,
     config: Config,
     cache_notes: set[str],
+    *,
+    now: datetime | None = None,
 ) -> dict[str, Any]:
     cache_key = (
         f"current-observation:{config.aemet_station_id}"
@@ -154,6 +159,7 @@ def _get_current_observation(
             config.municipio_nombre,
             config.aemet_station_id,
             config.timezone,
+            now=now,
             max_age_minutes=config.current_observation_max_age_minutes,
         )
         if normalized.get("current_temp") is not None:
@@ -161,7 +167,16 @@ def _get_current_observation(
         return normalized
     except AemetClientError as exc:
         stale = cache.get_stale(cache_key)
-        if _is_rate_limit_error(exc) and isinstance(stale, dict):
+        if (
+            _is_rate_limit_error(exc)
+            and isinstance(stale, dict)
+            and _is_recent_current_observation(
+                stale,
+                config.timezone,
+                config.current_observation_max_age_minutes,
+                now=now,
+            )
+        ):
             LOGGER.warning("AEMET limito la observacion actual; se usa cache.")
             cache_notes.add(cache_key)
             return stale
@@ -206,12 +221,16 @@ def _is_rate_limit_error(exc: AemetClientError) -> bool:
 
 
 def _current_time(timezone: str) -> str:
+    return _now(timezone).strftime("%H:%M")
+
+
+def _now(timezone_name: str) -> datetime:
     try:
-        tz = ZoneInfo(timezone)
+        tz = ZoneInfo(timezone_name)
     except ZoneInfoNotFoundError:
-        LOGGER.warning("Timezone no valido '%s'. Se usara UTC.", timezone)
+        LOGGER.warning("Timezone no valido '%s'. Se usara UTC.", timezone_name)
         tz = ZoneInfo("UTC")
-    return datetime.now(tz).strftime("%H:%M")
+    return datetime.now(tz)
 
 
 def _today_key(timezone: str) -> str:
@@ -344,6 +363,26 @@ def _expected_temperature_for_now(
         key=lambda item: abs((_period_hour(item.get("periodo")) or 0) * 60 - current_minutes),
     )
     return _to_number(best.get("value"))
+
+
+def _is_recent_current_observation(
+    observation: dict[str, Any],
+    timezone_name: str,
+    max_age_minutes: int | None,
+    *,
+    now: datetime | None = None,
+) -> bool:
+    if observation.get("current_temp") is None:
+        return False
+    if max_age_minutes is None or max_age_minutes <= 0:
+        return True
+
+    observed_at = _parse_observation_datetime(observation.get("current_temp_observed_at"))
+    if observed_at is None:
+        return False
+
+    tz = _load_timezone(timezone_name)
+    return _observation_age_minutes(observed_at.astimezone(tz), now, tz) <= max_age_minutes
 
 
 def _format_observation_time(value: Any, tz: ZoneInfo) -> str | None:

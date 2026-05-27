@@ -160,6 +160,68 @@ def test_current_observation_uses_normalized_cache_on_rate_limit(tmp_path):
     assert cache_notes == {"current-observation:alcala de henares"}
 
 
+def test_current_observation_ignores_old_cache_on_rate_limit(tmp_path):
+    cache = AemetCache(tmp_path / "aemet_cache.json")
+    cache.set(
+        "current-observation:alcala de henares",
+        {
+            "current_temp": 21.5,
+            "current_temp_time": "08:00",
+            "current_temp_station": "ALCALA DE HENARES",
+            "current_temp_observed_at": "2026-05-22T08:00:00+02:00",
+        },
+    )
+    cache_notes: set[str] = set()
+
+    result = _get_current_observation(
+        cache,
+        FakeAemet(AemetClientError("429 Client Error: Too Many Requests")),
+        Config(
+            aemet_api_key="aemet",
+            telegram_bot_token="telegram",
+            telegram_chat_id="chat",
+            municipio_id="28005",
+            municipio_nombre="Alcalá de Henares",
+            current_observation_max_age_minutes=150,
+        ),
+        cache_notes,
+        now=datetime(2026, 5, 22, 12, 0, tzinfo=ZoneInfo("Europe/Madrid")),
+    )
+
+    assert result == {}
+    assert cache_notes == set()
+
+
+def test_current_observation_uses_recent_cache_on_rate_limit(tmp_path):
+    cache = AemetCache(tmp_path / "aemet_cache.json")
+    cached = {
+        "current_temp": 21.5,
+        "current_temp_time": "11:00",
+        "current_temp_station": "ALCALA DE HENARES",
+        "current_temp_observed_at": "2026-05-22T11:00:00+02:00",
+    }
+    cache.set("current-observation:alcala de henares", cached)
+    cache_notes: set[str] = set()
+
+    result = _get_current_observation(
+        cache,
+        FakeAemet(AemetClientError("429 Client Error: Too Many Requests")),
+        Config(
+            aemet_api_key="aemet",
+            telegram_bot_token="telegram",
+            telegram_chat_id="chat",
+            municipio_id="28005",
+            municipio_nombre="Alcalá de Henares",
+            current_observation_max_age_minutes=150,
+        ),
+        cache_notes,
+        now=datetime(2026, 5, 22, 12, 0, tzinfo=ZoneInfo("Europe/Madrid")),
+    )
+
+    assert result == cached
+    assert cache_notes == {"current-observation:alcala de henares"}
+
+
 def test_expected_temperature_for_now_uses_nearest_forecast_hour():
     result = _expected_temperature_for_now(
         [

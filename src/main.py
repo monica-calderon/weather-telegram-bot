@@ -356,7 +356,7 @@ def _apply_open_meteo_current_temperature(
         return
 
     try:
-        temperature = open_meteo.get_current_temperature(
+        current = open_meteo.get_current_temperature(
             config.open_meteo_latitude,
             config.open_meteo_longitude,
             config.timezone,
@@ -366,11 +366,14 @@ def _apply_open_meteo_current_temperature(
         summary.pop("current_temp", None)
         return
 
+    temperature = current.get("temperature") if isinstance(current, dict) else current
     if not _is_displayable_current_temperature(temperature):
         summary.pop("current_temp", None)
         return
 
     summary["current_temp"] = temperature
+    if isinstance(current, dict) and current.get("time"):
+        summary["current_temp_time"] = current["time"]
     summary["current_temp_source"] = "open-meteo"
     summary["open_meteo_note"] = True
     summary.pop("current_temp_note", None)

@@ -70,8 +70,7 @@ def test_build_daily_summary_message_contains_expected_values():
 
     assert "☀️ <b>Resumen diario</b> 09:00" in message
     assert "Cielo: Poco nuboso" in message
-    assert "Actual: 21°C" in message
-    assert "12:50" not in message
+    assert "Actual: 21°C (12:50)" in message
     assert "Máxima: 31°C" in message
     assert "Mínima: 18°C" in message
     assert "Lluvia máx.: 60%" in message
@@ -127,11 +126,25 @@ def test_build_daily_summary_message_includes_open_meteo_note():
     message = build_daily_summary_message(
         {
             "current_temp": 22.4,
+            "current_temp_time": "19:00",
             "current_temp_source": "open-meteo",
             "open_meteo_note": True,
         },
         "Alcala de Henares",
     )
 
-    assert "Actual: 22.4°C" in message
+    assert "Actual: 22.4°C (19:00)" in message
     assert "Nota: temperatura actual estimada con Open-Meteo." in message
+
+
+def test_build_daily_summary_message_omits_measurement_time_when_missing():
+    message = build_daily_summary_message(
+        {
+            "current_temp": 22.4,
+            "current_temp_source": "open-meteo",
+        },
+        "Alcala de Henares",
+    )
+
+    assert "Actual: 22.4°C" in message
+    assert "Actual: 22.4°C (" not in message

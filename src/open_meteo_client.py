@@ -18,7 +18,7 @@ class OpenMeteoClient:
 
     def get_current_temperature(
         self, latitude: float, longitude: float, timezone_name: str
-    ) -> int | float:
+    ) -> dict[str, int | float | str | None]:
         params = {
             "latitude": latitude,
             "longitude": longitude,
@@ -34,23 +34,36 @@ class OpenMeteoClient:
         except ValueError as exc:
             raise OpenMeteoClientError("Open-Meteo no devolvio JSON valido") from exc
 
-        temperature = _current_temperature_from_payload(data)
-        if temperature is None:
+        current = _current_temperature_from_payload(data)
+        if current["temperature"] is None:
             raise OpenMeteoClientError("Open-Meteo no devolvio temperatura actual")
-        return temperature
+        return current
 
 
-def _current_temperature_from_payload(data: Any) -> int | float | None:
+def _current_temperature_from_payload(data: Any) -> dict[str, int | float | str | None]:
+    empty = {"temperature": None, "time": None}
     if not isinstance(data, dict):
-        return None
+        return empty
     current = data.get("current")
     if not isinstance(current, dict):
-        return None
+        return empty
     value = current.get("temperature_2m")
     if value in (None, ""):
-        return None
+        return empty
     try:
         number = float(value)
     except (TypeError, ValueError):
+        return empty
+    return {
+        "temperature": int(number) if number.is_integer() else number,
+        "time": _format_open_meteo_time(current.get("time")),
+    }
+
+
+def _format_open_meteo_time(value: Any) -> str | None:
+    if not value:
         return None
-    return int(number) if number.is_integer() else number
+    text = str(value)
+    if "T" in text:
+        return text.split("T", 1)[1][:5]
+    return text[:5] if len(text) >= 5 else text

@@ -82,4 +82,7 @@ def _format_current_temperature(summary: dict[str, Any]) -> str:
     value = _format_value(summary.get("current_temp"), "°C")
     if value != "No disponible" and summary.get("current_temp_source") == "forecast":
         return f"{value} prev."
+    measurement_time = summary.get("current_temp_time")
+    if measurement_time:
+        return f"{value} ({measurement_time})"
     return value

@@ -292,11 +292,12 @@ def test_expected_current_temperature_ignores_zero_forecast():
 
 def test_open_meteo_current_temperature_is_last_resort():
     summary = {"current_temp": None}
-    open_meteo = FakeOpenMeteo(23.6)
+    open_meteo = FakeOpenMeteo({"temperature": 23.6, "time": "19:00"})
 
     _apply_open_meteo_current_temperature(summary, open_meteo, _config())
 
     assert summary["current_temp"] == 23.6
+    assert summary["current_temp_time"] == "19:00"
     assert summary["current_temp_source"] == "open-meteo"
     assert summary["open_meteo_note"] is True
 
@@ -339,7 +340,9 @@ class FakeOpenMeteo:
 
     def get_current_temperature(self, latitude, longitude, timezone_name):
         self.calls += 1
-        return self.result
+        if isinstance(self.result, dict):
+            return self.result
+        return {"temperature": self.result, "time": None}
 
 
 def _config() -> Config:

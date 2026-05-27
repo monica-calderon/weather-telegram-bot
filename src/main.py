@@ -5,7 +5,7 @@ import io
 import logging
 import sys
 from collections.abc import Callable
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 from xml.etree import ElementTree
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -149,6 +149,8 @@ def _get_current_observation(
             observations,
             config.municipio_nombre,
             config.aemet_station_id,
+            config.timezone,
+            max_age_minutes=config.current_observation_max_age_minutes,
         )
         if normalized.get("current_temp") is not None:
             cache.set(cache_key, normalized)
@@ -225,7 +227,13 @@ def normalize_current_temperature(
 
 
 def normalize_current_observation(
-    observations: Any, municipio_nombre: str, station_id: str | None = None
+    observations: Any,
+    municipio_nombre: str,
+    station_id: str | None = None,
+    timezone_name: str = "Europe/Madrid",
+    *,
+    now: datetime | None = None,
+    max_age_minutes: int | None = None,
 ) -> dict[str, Any]:
     if isinstance(observations, dict):
         candidates = [observations]
@@ -251,24 +259,77 @@ def normalize_current_observation(
     if not candidates_with_temp:
         return {}
 
-    latest = max(candidates_with_temp, key=lambda item: str(item.get("fint", "")))
+    tz = _load_timezone(timezone_name)
+    latest = max(
+        candidates_with_temp,
+        key=lambda item: _parse_observation_datetime(item.get("fint"))
+        or datetime.min.replace(tzinfo=timezone.utc),
+    )
+    observed_at = _parse_observation_datetime(latest.get("fint"))
+    observed_at_local = observed_at.astimezone(tz) if observed_at else None
+    if (
+        observed_at_local
+        and max_age_minutes is not None
+        and max_age_minutes > 0
+        and _observation_age_minutes(observed_at_local, now, tz) > max_age_minutes
+    ):
+        return {
+            "current_temp": None,
+            "current_temp_time": observed_at_local.strftime("%H:%M"),
+            "current_temp_station": latest.get("ubi") or latest.get("idema"),
+            "current_temp_note": "AEMET no tiene una observacion reciente",
+        }
+
     return {
         "current_temp": _to_number(latest.get("ta")),
-        "current_temp_time": _format_observation_time(latest.get("fint")),
+        "current_temp_time": _format_observation_time(latest.get("fint"), tz),
         "current_temp_station": latest.get("ubi") or latest.get("idema"),
+        "current_temp_observed_at": observed_at_local.isoformat()
+        if observed_at_local
+        else None,
     }
 
 
-def _format_observation_time(value: Any) -> str | None:
+def _format_observation_time(value: Any, tz: ZoneInfo) -> str | None:
+    observed_at = _parse_observation_datetime(value)
+    if observed_at:
+        return observed_at.astimezone(tz).strftime("%H:%M")
     if not value:
         return None
     text = str(value)
+    if "T" in text:
+        return text.split("T", 1)[1][:5]
+    return text[:5] if len(text) >= 5 else text
+
+
+def _parse_observation_datetime(value: Any) -> datetime | None:
+    if not value:
+        return None
+    text = str(value).strip()
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
     try:
-        return datetime.fromisoformat(text).strftime("%H:%M")
+        observed_at = datetime.fromisoformat(text)
     except ValueError:
-        if "T" in text:
-            return text.split("T", 1)[1][:5]
-        return text[:5] if len(text) >= 5 else text
+        return None
+    if observed_at.tzinfo is None:
+        observed_at = observed_at.replace(tzinfo=timezone.utc)
+    return observed_at
+
+
+def _load_timezone(timezone_name: str) -> ZoneInfo:
+    try:
+        return ZoneInfo(timezone_name)
+    except ZoneInfoNotFoundError:
+        LOGGER.warning("Timezone no valido '%s'. Se usara UTC.", timezone_name)
+        return ZoneInfo("UTC")
+
+
+def _observation_age_minutes(
+    observed_at_local: datetime, now: datetime | None, tz: ZoneInfo
+) -> float:
+    current = now.astimezone(tz) if now else datetime.now(tz)
+    return (current - observed_at_local).total_seconds() / 60
 
 
 def _normalize_text(value: str) -> str:

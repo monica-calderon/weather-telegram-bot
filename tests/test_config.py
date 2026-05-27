@@ -15,4 +15,18 @@ def test_config_defaults_to_madrid_alert_area(monkeypatch):
 
     assert config.rain_prob_threshold == 50
     assert config.aemet_alert_area == "72"
+    assert config.aemet_station_id == "3170Y"
+    assert config.current_observation_max_age_minutes == 150
+
+
+def test_config_keeps_station_empty_for_unknown_municipality(monkeypatch):
+    monkeypatch.setenv("AEMET_API_KEY", "aemet")
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "telegram")
+    monkeypatch.setenv("TELEGRAM_CHAT_ID", "chat")
+    monkeypatch.setenv("MUNICIPIO_ID", "99999")
+    monkeypatch.setenv("MUNICIPIO_NOMBRE", "Otro")
+    monkeypatch.delenv("AEMET_STATION_ID", raising=False)
+
+    config = Config.from_env()
+
     assert config.aemet_station_id is None

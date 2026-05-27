@@ -24,6 +24,7 @@ class Config:
     cold_temp_threshold: int = 0
     aemet_alert_area: str = "72"
     aemet_station_id: str | None = None
+    current_observation_max_age_minutes: int = 150
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -54,7 +55,10 @@ class Config:
             heat_temp_threshold=_int_env("HEAT_TEMP_THRESHOLD", 35),
             cold_temp_threshold=_int_env("COLD_TEMP_THRESHOLD", 0),
             aemet_alert_area=os.getenv("AEMET_ALERT_AREA", "72"),
-            aemet_station_id=os.getenv("AEMET_STATION_ID"),
+            aemet_station_id=_station_id_from_env(required["MUNICIPIO_ID"] or ""),
+            current_observation_max_age_minutes=_int_env(
+                "CURRENT_OBSERVATION_MAX_AGE_MINUTES", 150
+            ),
         )
 
 
@@ -66,3 +70,14 @@ def _int_env(name: str, default: int) -> int:
         return int(value)
     except ValueError as exc:
         raise ConfigError(f"{name} debe ser un numero entero, recibido: {value}") from exc
+
+
+def _station_id_from_env(municipio_id: str) -> str | None:
+    configured = os.getenv("AEMET_STATION_ID")
+    if configured and configured.strip():
+        return configured.strip()
+
+    known_station_by_municipality = {
+        "28005": "3170Y",  # Alcala de Henares
+    }
+    return known_station_by_municipality.get(municipio_id)

@@ -51,7 +51,8 @@ WIND_KMH_THRESHOLD=45
 HEAT_TEMP_THRESHOLD=35
 COLD_TEMP_THRESHOLD=0
 AEMET_ALERT_AREA=72
-AEMET_STATION_ID=
+AEMET_STATION_ID=3170Y
+CURRENT_OBSERVATION_MAX_AGE_MINUTES=150
 ```
 
 ## Crear bot de Telegram
@@ -109,7 +110,7 @@ Para reducir errores `429 Too Many Requests`, el workflow guarda una cache persi
 
 - Prediccion municipal: se consulta como maximo una vez al dia y se guarda ya normalizada.
 - Avisos oficiales: se consultan como maximo una vez al dia y se guardan ya normalizados.
-- Observacion actual: se consulta en cada resumen; solo se usa cache si AEMET limita la API.
+- Observacion actual: se consulta en cada resumen; solo se usa cache si AEMET limita la API. La hora de la observacion se convierte a `TIMEZONE` y no se muestra como actual si supera `CURRENT_OBSERVATION_MAX_AGE_MINUTES`.
 
 Si un resumen usa cache por limite temporal de AEMET, el mensaje incluye la nota `datos cacheados por límite temporal de AEMET`.
 
@@ -139,7 +140,8 @@ Configura estas `Variables` del repositorio:
 - `HEAT_TEMP_THRESHOLD`
 - `COLD_TEMP_THRESHOLD`
 - `AEMET_ALERT_AREA` opcional, por defecto `72` para Comunidad de Madrid.
-- `AEMET_STATION_ID` opcional. Si lo configuras, se usa esa estacion AEMET para la temperatura actual. Si lo dejas vacio, el bot intenta encontrar una observacion cuyo nombre coincida con `MUNICIPIO_NOMBRE`.
+- `AEMET_STATION_ID` opcional. Si lo configuras, se usa esa estacion AEMET para la temperatura actual. Para Alcala de Henares se recomienda `3170Y`; si `MUNICIPIO_ID=28005` y lo dejas vacio, el bot usa ese valor por defecto. Para otros municipios, si lo dejas vacio, el bot intenta encontrar una observacion cuyo nombre coincida con `MUNICIPIO_NOMBRE`.
+- `CURRENT_OBSERVATION_MAX_AGE_MINUTES` opcional, por defecto `150`. Evita mostrar como actual una observacion de AEMET demasiado antigua.
 
 Hay dos workflows:
 
@@ -210,7 +212,8 @@ Los umbrales se cambian con variables del repositorio o en `.env` para local:
 - `HEAT_TEMP_THRESHOLD`: temperatura maxima para alerta de calor.
 - `COLD_TEMP_THRESHOLD`: temperatura minima para frio/helada.
 - `AEMET_ALERT_AREA`: area de avisos oficiales. `72` es Comunidad de Madrid.
-- `AEMET_STATION_ID`: estacion AEMET para temperatura actual, opcional.
+- `AEMET_STATION_ID`: estacion AEMET para temperatura actual, opcional. Para Alcala de Henares usa `3170Y`.
+- `CURRENT_OBSERVATION_MAX_AGE_MINUTES`: antiguedad maxima aceptada para la observacion actual, por defecto `150`.
 
 ## Privacidad y seguridad
 

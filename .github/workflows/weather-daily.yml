@@ -26,6 +26,7 @@ jobs:
       COLD_TEMP_THRESHOLD: ${{ vars.COLD_TEMP_THRESHOLD || '0' }}
       AEMET_ALERT_AREA: ${{ vars.AEMET_ALERT_AREA || '72' }}
       AEMET_STATION_ID: ${{ vars.AEMET_STATION_ID }}
+      CURRENT_OBSERVATION_MAX_AGE_MINUTES: ${{ vars.CURRENT_OBSERVATION_MAX_AGE_MINUTES || '150' }}
 
     steps:
       - uses: actions/checkout@v4

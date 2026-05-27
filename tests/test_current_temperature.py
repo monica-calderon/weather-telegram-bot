@@ -1,3 +1,6 @@
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 from src.aemet_cache import AemetCache
 from src.aemet_client import AemetClientError
 from src.config import Config
@@ -49,8 +52,51 @@ def test_normalize_current_observation_includes_time_and_station():
 
     assert normalize_current_observation(observations, "Alcalá de Henares") == {
         "current_temp": 19.2,
-        "current_temp_time": "08:10",
+        "current_temp_time": "10:10",
         "current_temp_station": "ALCALA DE HENARES",
+        "current_temp_observed_at": "2026-05-22T10:10:00+02:00",
+    }
+
+
+def test_normalize_current_observation_converts_utc_time_to_configured_timezone():
+    observations = [
+        {
+            "ubi": "ALCALA DE HENARES",
+            "ta": 19.2,
+            "fint": "2026-01-22T08:10:00Z",
+        },
+    ]
+
+    assert (
+        normalize_current_observation(
+            observations, "Alcalá de Henares", timezone_name="Europe/Madrid"
+        )["current_temp_time"]
+        == "09:10"
+    )
+
+
+def test_normalize_current_observation_rejects_old_values():
+    observations = [
+        {
+            "ubi": "ALCALA DE HENARES",
+            "ta": 19.2,
+            "fint": "2026-05-22T06:00:00Z",
+        },
+    ]
+
+    result = normalize_current_observation(
+        observations,
+        "Alcalá de Henares",
+        timezone_name="Europe/Madrid",
+        now=datetime(2026, 5, 22, 11, 0, tzinfo=ZoneInfo("Europe/Madrid")),
+        max_age_minutes=150,
+    )
+
+    assert result == {
+        "current_temp": None,
+        "current_temp_time": "08:00",
+        "current_temp_station": "ALCALA DE HENARES",
+        "current_temp_note": "AEMET no tiene una observacion reciente",
     }
 
 
@@ -84,8 +130,9 @@ def test_current_observation_refreshes_even_when_cache_exists(tmp_path):
     assert aemet.calls == 1
     assert result == {
         "current_temp": 22.4,
-        "current_temp_time": "12:50",
+        "current_temp_time": "14:50",
         "current_temp_station": "ALCALA DE HENARES",
+        "current_temp_observed_at": "2026-05-22T14:50:00+02:00",
     }
     assert cache.get_stale("current-observation:alcala de henares") == result
 
@@ -130,4 +177,5 @@ def _config() -> Config:
         telegram_chat_id="chat",
         municipio_id="28005",
         municipio_nombre="Alcalá de Henares",
+        current_observation_max_age_minutes=0,
     )

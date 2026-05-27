@@ -80,6 +80,9 @@ def _format_current_temperature(summary: dict[str, Any]) -> str:
         for item in [summary.get("current_temp_time"), summary.get("current_temp_station")]
         if item
     ]
+    note = summary.get("current_temp_note")
+    if note:
+        details.append(str(note))
     if not details:
         return value
     return f"{value} ({', '.join(details)})"

@@ -81,3 +81,20 @@ def test_build_daily_summary_message_contains_expected_values():
     assert "Calor: Temperatura maxima prevista de 31 C" in message
     assert "Aviso oficial AEMET: Tormentas" in message
     assert "Nota: datos cacheados por límite temporal de AEMET." in message
+
+
+def test_build_daily_summary_message_explains_stale_current_temperature():
+    message = build_daily_summary_message(
+        {
+            "current_temp": None,
+            "current_temp_time": "08:00",
+            "current_temp_station": "Alcala de Henares",
+            "current_temp_note": "AEMET no tiene una observacion reciente",
+        },
+        "Alcala de Henares",
+    )
+
+    assert (
+        "Actual: No disponible (08:00, Alcala de Henares, "
+        "AEMET no tiene una observacion reciente)"
+    ) in message

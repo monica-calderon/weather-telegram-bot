@@ -42,42 +42,40 @@ def run_bot(mode: str, config: Config) -> dict[str, int | str]:
     telegram = TelegramClient(config.telegram_bot_token, config.telegram_chat_id)
     cache = AemetCache()
     cache_notes: set[str] = set()
-    today_key = _today_key(config.timezone)
-    forecast = _get_cached_aemet_data(
-        cache,
-        key=f"forecast:{config.municipio_id}",
-        fetch=lambda: aemet.get_municipality_forecast(config.municipio_id),
-        cache_date=today_key,
-        cache_notes=cache_notes,
-        required=True,
-    )
-    official_alerts = _get_cached_aemet_data(
-        cache,
-        key=f"alerts:{config.aemet_alert_area}",
-        fetch=lambda: aemet.get_weather_alerts(config.aemet_alert_area),
-        cache_date=today_key,
-        cache_notes=cache_notes,
-        required=False,
-        default=[],
-    )
-    normalized = normalize_forecast(forecast, config.municipio_nombre)
-    normalized["official_alerts"] = normalize_official_alerts(official_alerts)
 
     if mode == "daily":
-        observation_key = config.aemet_station_id or "all"
-        current_observations = _get_cached_aemet_data(
+        today_key = _today_key(config.timezone)
+        normalized = dict(
+            _get_cached_aemet_data(
+                cache,
+                key=f"forecast-summary:{config.municipio_id}",
+                fetch=lambda: normalize_forecast(
+                    aemet.get_municipality_forecast(config.municipio_id),
+                    config.municipio_nombre,
+                ),
+                cache_date=today_key,
+                cache_notes=cache_notes,
+                required=True,
+            )
+        )
+        normalized["official_alerts"] = _get_cached_aemet_data(
             cache,
-            key=f"observations:{observation_key}",
-            fetch=lambda: aemet.get_current_observations(config.aemet_station_id),
-            max_age=timedelta(minutes=90),
+            key=f"official-alerts:{config.aemet_alert_area}",
+            fetch=lambda: normalize_official_alerts(
+                aemet.get_weather_alerts(config.aemet_alert_area)
+            ),
+            cache_date=today_key,
             cache_notes=cache_notes,
             required=False,
             default=[],
         )
-        normalized["current_temp"] = normalize_current_temperature(
-            current_observations,
-            config.municipio_nombre,
-            config.aemet_station_id,
+        normalized.update(
+            _get_current_observation(
+                cache,
+                aemet,
+                config,
+                cache_notes,
+            )
         )
         normalized["daily_alerts"] = build_weather_alerts(
             normalized,
@@ -99,6 +97,16 @@ def run_bot(mode: str, config: Config) -> dict[str, int | str]:
     if mode != "alerts":
         raise ValueError(f"Modo no soportado: {mode}")
 
+    forecast = aemet.get_municipality_forecast(config.municipio_id)
+    try:
+        official_alerts = normalize_official_alerts(
+            aemet.get_weather_alerts(config.aemet_alert_area)
+        )
+    except AemetClientError as exc:
+        LOGGER.warning("No se pudieron obtener avisos oficiales AEMET: %s", exc)
+        official_alerts = []
+    normalized = normalize_forecast(forecast, config.municipio_nombre)
+    normalized["official_alerts"] = official_alerts
     alerts = build_weather_alerts(
         normalized,
         rain_prob_threshold=config.rain_prob_threshold,
@@ -122,6 +130,37 @@ def run_bot(mode: str, config: Config) -> dict[str, int | str]:
 
     LOGGER.info("Alertas detectadas=%s, enviadas=%s", len(alerts), sent)
     return {"mode": "alerts", "detected": len(alerts), "sent": sent}
+
+
+def _get_current_observation(
+    cache: AemetCache,
+    aemet: AemetClient,
+    config: Config,
+    cache_notes: set[str],
+) -> dict[str, Any]:
+    cache_key = (
+        f"current-observation:{config.aemet_station_id}"
+        if config.aemet_station_id
+        else f"current-observation:{_normalize_text(config.municipio_nombre)}"
+    )
+    try:
+        observations = aemet.get_current_observations(config.aemet_station_id)
+        normalized = normalize_current_observation(
+            observations,
+            config.municipio_nombre,
+            config.aemet_station_id,
+        )
+        if normalized.get("current_temp") is not None:
+            cache.set(cache_key, normalized)
+        return normalized
+    except AemetClientError as exc:
+        stale = cache.get_stale(cache_key)
+        if _is_rate_limit_error(exc) and isinstance(stale, dict):
+            LOGGER.warning("AEMET limito la observacion actual; se usa cache.")
+            cache_notes.add(cache_key)
+            return stale
+        LOGGER.warning("No se pudo obtener temperatura actual AEMET: %s", exc)
+        return {}
 
 
 def _get_cached_aemet_data(
@@ -180,12 +219,20 @@ def _today_key(timezone: str) -> str:
 def normalize_current_temperature(
     observations: Any, municipio_nombre: str, station_id: str | None = None
 ) -> int | float | None:
+    return normalize_current_observation(
+        observations, municipio_nombre, station_id
+    ).get("current_temp")
+
+
+def normalize_current_observation(
+    observations: Any, municipio_nombre: str, station_id: str | None = None
+) -> dict[str, Any]:
     if isinstance(observations, dict):
         candidates = [observations]
     elif isinstance(observations, list):
         candidates = observations
     else:
-        return None
+        return {}
 
     if not station_id:
         municipio_key = _normalize_text(municipio_nombre)
@@ -202,10 +249,26 @@ def normalize_current_temperature(
         if isinstance(item, dict) and _to_number(item.get("ta")) is not None
     ]
     if not candidates_with_temp:
-        return None
+        return {}
 
     latest = max(candidates_with_temp, key=lambda item: str(item.get("fint", "")))
-    return _to_number(latest.get("ta"))
+    return {
+        "current_temp": _to_number(latest.get("ta")),
+        "current_temp_time": _format_observation_time(latest.get("fint")),
+        "current_temp_station": latest.get("ubi") or latest.get("idema"),
+    }
+
+
+def _format_observation_time(value: Any) -> str | None:
+    if not value:
+        return None
+    text = str(value)
+    try:
+        return datetime.fromisoformat(text).strftime("%H:%M")
+    except ValueError:
+        if "T" in text:
+            return text.split("T", 1)[1][:5]
+        return text[:5] if len(text) >= 5 else text
 
 
 def _normalize_text(value: str) -> str:

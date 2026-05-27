@@ -105,11 +105,11 @@ python -m src.main daily
 
 En el resumen diario, `Lluvia máx.` y `Viento máx.` no son valores actuales ni medias: son el valor maximo previsto por AEMET para algun tramo del dia. Si las reglas detectan lluvia, viento, calor, frio/helada o avisos oficiales, el resumen añade la seccion `Avisos del día` con el detalle y, cuando AEMET lo publica, el tramo horario afectado.
 
-Para reducir errores `429 Too Many Requests`, el workflow guarda una cache persistente en la rama `bot-state`:
+Para reducir errores `429 Too Many Requests`, el workflow guarda una cache persistente y minima en la rama `bot-state`:
 
-- Prediccion municipal: se consulta como maximo una vez al dia.
-- Avisos oficiales: se consultan como maximo una vez al dia.
-- Observacion actual: se intenta refrescar en cada resumen; si AEMET limita la API, se usa la ultima observacion cacheada.
+- Prediccion municipal: se consulta como maximo una vez al dia y se guarda ya normalizada.
+- Avisos oficiales: se consultan como maximo una vez al dia y se guardan ya normalizados.
+- Observacion actual: se consulta en cada resumen; solo se usa cache si AEMET limita la API.
 
 Si un resumen usa cache por limite temporal de AEMET, el mensaje incluye la nota `datos cacheados por límite temporal de AEMET`.
 
@@ -218,7 +218,7 @@ Los umbrales se cambian con variables del repositorio o en `.env` para local:
 - No subas tokens ni claves API.
 - Si el repositorio es publico, cualquier archivo generado y subido al repo sera publico.
 - El estado `.state/` esta ignorado por Git.
-- La rama `bot-state` guarda `aemet_cache.json` para reducir llamadas a AEMET. No contiene tokens, solo respuestas meteorologicas cacheadas.
+- La rama `bot-state` guarda `aemet_cache.json` para reducir llamadas a AEMET. No contiene tokens; guarda prediccion/avisos normalizados y la ultima observacion seleccionada.
 
 ## Limitaciones
 

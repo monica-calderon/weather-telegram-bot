@@ -33,7 +33,7 @@ def build_daily_summary_message(
 ) -> str:
     max_temp = _format_value(summary.get("max_temp"), "°C")
     min_temp = _format_value(summary.get("min_temp"), "°C")
-    current_temp = _format_value(summary.get("current_temp"), "°C")
+    current_temp = _format_current_temperature(summary)
     rain_probability = _format_value(summary.get("rain_probability"), "%")
     wind_kmh = _format_value(summary.get("wind_kmh"), " km/h")
     sky_status = summary.get("sky_status") or "No disponible"
@@ -71,3 +71,15 @@ def _format_value(value: Any, suffix: str) -> str:
     if value is None:
         return "No disponible"
     return f"{value}{suffix}"
+
+
+def _format_current_temperature(summary: dict[str, Any]) -> str:
+    value = _format_value(summary.get("current_temp"), "°C")
+    details = [
+        str(item)
+        for item in [summary.get("current_temp_time"), summary.get("current_temp_station")]
+        if item
+    ]
+    if not details:
+        return value
+    return f"{value} ({', '.join(details)})"

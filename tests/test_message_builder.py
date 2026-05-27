@@ -24,6 +24,8 @@ def test_build_daily_summary_message_contains_expected_values():
         {
             "sky_status": "Poco nuboso",
             "current_temp": 21,
+            "current_temp_time": "12:50",
+            "current_temp_station": "Alcala de Henares",
             "max_temp": 31,
             "min_temp": 18,
             "rain_probability": 60,
@@ -68,7 +70,7 @@ def test_build_daily_summary_message_contains_expected_values():
 
     assert "☀️ <b>Resumen diario</b> 09:00" in message
     assert "Cielo: Poco nuboso" in message
-    assert "Actual: 21°C" in message
+    assert "Actual: 21°C (12:50, Alcala de Henares)" in message
     assert "Máxima: 31°C" in message
     assert "Mínima: 18°C" in message
     assert "Lluvia máx.: 60%" in message

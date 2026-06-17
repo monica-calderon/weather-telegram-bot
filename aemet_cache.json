@@ -173944,33 +173944,33 @@
     }
   },
   "forecast-summary-v2:28005": {
-    "fetched_at": "2026-06-16T16:01:08.209760+00:00",
+    "fetched_at": "2026-06-17T16:01:02.537464+00:00",
     "value": {
       "municipio_nombre": "Alcalá de Henares",
-      "date": "2026-06-16T00:00:00",
-      "max_temp": 34,
-      "min_temp": 15,
+      "date": "2026-06-17T00:00:00",
+      "max_temp": 36,
+      "min_temp": 17,
       "hourly_temperatures": [
         {
           "periodo": "06",
-          "value": 19
+          "value": 21
         },
         {
           "periodo": "12",
-          "value": 33
+          "value": 34
         },
         {
           "periodo": "18",
-          "value": 29
+          "value": 36
         }
       ],
-      "rain_probability": 65,
-      "rain_period": "12-24",
-      "wind_kmh": 25,
+      "rain_probability": 0,
+      "rain_period": "00-24",
+      "wind_kmh": 30,
       "wind_period": "18-24",
-      "sky_status": "Muy nuboso con lluvia escasa"
+      "sky_status": "Despejado"
     },
-    "cache_date": "2026-06-16"
+    "cache_date": "2026-06-17"
   },
   "current-observation:3170Y": {
     "fetched_at": "2026-06-16T22:01:04.564124+00:00",

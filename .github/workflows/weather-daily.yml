@@ -16,8 +16,16 @@ jobs:
     env:
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
       AEMET_API_KEY: ${{ secrets.AEMET_API_KEY }}
+      NTFY_METHOD: ${{ vars.NTFY_METHOD || secrets.NTFY_METHOD || 'auto' }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      NTFY_TOPIC: ${{ secrets.NTFY_TOPIC || vars.NTFY_TOPIC }}
+      NTFY_SERVER: ${{ vars.NTFY_SERVER || 'https://ntfy.sh' }}
+      NTFY_TOKEN: ${{ secrets.NTFY_TOKEN }}
+      NTFY_USERNAME: ${{ secrets.NTFY_USERNAME }}
+      NTFY_PASSWORD: ${{ secrets.NTFY_PASSWORD }}
+      NTFY_PRIORITY: ${{ vars.NTFY_PRIORITY }}
+      NTFY_TAGS: ${{ vars.NTFY_TAGS }}
       MUNICIPIO_ID: ${{ vars.MUNICIPIO_ID }}
       MUNICIPIO_NOMBRE: ${{ vars.MUNICIPIO_NOMBRE }}
       TIMEZONE: ${{ vars.TIMEZONE || 'Europe/Madrid' }}

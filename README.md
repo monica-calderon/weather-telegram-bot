@@ -13,7 +13,7 @@ El proyecto esta preparado para ejecutarse en local con `.env` y en GitHub Actio
 - Intenta consultar avisos oficiales AEMET.
 - Aplica reglas configurables por variables de entorno e incluye los avisos dentro del resumen diario.
 - Reutiliza datos cacheados para reducir llamadas a AEMET y resistir limites temporales de la API.
-- Envia mensajes con Telegram Bot API.
+- Envia mensajes con Telegram Bot API, Ntfy, o ambos.
 - Mantiene workflows de GitHub Actions para ejecucion manual o disparo por API.
 - Usa cron-job.org como reloj externo mas fiable que el scheduler nativo de GitHub.
 
@@ -48,8 +48,16 @@ copy .env.example .env
 
 ```env
 AEMET_API_KEY=tu_api_key
+NTFY_METHOD=auto
 TELEGRAM_BOT_TOKEN=123456:ABCDEF
 TELEGRAM_CHAT_ID=123456789
+NTFY_TOPIC=mi-topic-privado
+NTFY_SERVER=https://ntfy.sh
+NTFY_TOKEN=
+NTFY_USERNAME=
+NTFY_PASSWORD=
+NTFY_PRIORITY=
+NTFY_TAGS=partly_sunny
 MUNICIPIO_ID=28005
 MUNICIPIO_NOMBRE=Alcalá de Henares
 TIMEZONE=Europe/Madrid
@@ -83,6 +91,17 @@ https://api.telegram.org/bot<TU_TOKEN>/getUpdates
 ```
 
 Busca el campo `chat.id` en la respuesta JSON.
+
+## Configurar notificaciones
+
+`NTFY_METHOD` controla que canales se usan:
+
+- `auto`: usa todos los canales que tengan configuracion completa. Es el valor por defecto.
+- `telegram`: usa solo Telegram y requiere `TELEGRAM_BOT_TOKEN` y `TELEGRAM_CHAT_ID`.
+- `ntfy`: usa solo Ntfy y requiere `NTFY_TOPIC`.
+- `both`: envia por Telegram y Ntfy, y requiere ambas configuraciones.
+
+Para Ntfy, configura como minimo `NTFY_TOPIC`. Por defecto se envia a `https://ntfy.sh/<topic>`, pero puedes cambiar el servidor con `NTFY_SERVER` o poner una URL completa directamente en `NTFY_TOPIC`. Si tu servidor requiere autenticacion, usa `NTFY_TOKEN` para bearer token o `NTFY_USERNAME` y `NTFY_PASSWORD` para basic auth. `NTFY_PRIORITY` y `NTFY_TAGS` son opcionales.
 
 ## Obtener API key de AEMET
 
@@ -144,8 +163,11 @@ El proyecto incluye `pytest.ini` para que `src` se pueda importar al ejecutar `p
 Configura estos `Secrets` en tu repositorio:
 
 - `AEMET_API_KEY`
-- `TELEGRAM_BOT_TOKEN`
-- `TELEGRAM_CHAT_ID`
+- `TELEGRAM_BOT_TOKEN` si usas Telegram.
+- `TELEGRAM_CHAT_ID` si usas Telegram.
+- `NTFY_TOPIC` si usas Ntfy; tambien puedes guardarlo como Variable.
+- `NTFY_TOKEN` opcional si tu servidor Ntfy requiere bearer token.
+- `NTFY_USERNAME` y `NTFY_PASSWORD` opcionales si tu servidor Ntfy requiere basic auth.
 - `GOOGLE_SERVICE_ACCOUNT_JSON` opcional, JSON completo de la service account de Google.
 - `GOOGLE_CALENDAR_IDS` opcional si prefieres guardar tambien los IDs como secreto.
 - `GOOGLE_CALENDAR_NAMES` opcional si prefieres guardar tambien los nombres visibles como secreto.
@@ -155,6 +177,10 @@ Configura estas `Variables` del repositorio:
 
 - `MUNICIPIO_ID`
 - `MUNICIPIO_NOMBRE`
+- `NTFY_METHOD` opcional, por defecto `auto`. Valores: `auto`, `telegram`, `ntfy`, `both`.
+- `NTFY_SERVER` opcional, por defecto `https://ntfy.sh`.
+- `NTFY_PRIORITY` opcional.
+- `NTFY_TAGS` opcional, etiquetas Ntfy separadas por coma.
 - `TIMEZONE`
 - `RAIN_PROB_THRESHOLD`
 - `WIND_KMH_THRESHOLD`

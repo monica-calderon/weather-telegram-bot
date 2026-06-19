@@ -16,16 +16,16 @@ from src.aemet_cache import AemetCache
 from src.config import Config, ConfigError
 from src.google_calendar_client import GoogleCalendarClient, GoogleCalendarClientError
 from src.message_builder import build_alert_message, build_daily_summary_message
+from src.notification_client import NotificationClient, NotificationClientError
 from src.open_meteo_client import OpenMeteoClient, OpenMeteoClientError
 from src.state_store import StateStore
-from src.telegram_client import TelegramClient, TelegramClientError
 from src.weather_rules import build_weather_alerts
 
 LOGGER = logging.getLogger(__name__)
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Bot meteorologico AEMET + Telegram")
+    parser = argparse.ArgumentParser(description="Bot meteorologico AEMET")
     parser.add_argument("mode", choices=["alerts", "daily"], help="Modo de ejecucion")
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -34,7 +34,7 @@ def main(argv: list[str] | None = None) -> int:
         config = Config.from_env()
         run_bot(args.mode, config)
         return 0
-    except (ConfigError, AemetClientError, TelegramClientError) as exc:
+    except (ConfigError, AemetClientError, NotificationClientError) as exc:
         LOGGER.error("%s", exc)
         return 1
 
@@ -42,7 +42,7 @@ def main(argv: list[str] | None = None) -> int:
 def run_bot(mode: str, config: Config) -> dict[str, int | str]:
     aemet = AemetClient(config.aemet_api_key)
     open_meteo = OpenMeteoClient()
-    telegram = TelegramClient(config.telegram_bot_token, config.telegram_chat_id)
+    notifier = NotificationClient(config)
     cache = AemetCache()
     cache_notes: set[str] = set()
 
@@ -106,7 +106,7 @@ def run_bot(mode: str, config: Config) -> dict[str, int | str]:
             config.municipio_nombre,
             current_time=message_time.strftime("%H:%M"),
         )
-        telegram.send_message(message)
+        notifier.send_message(message)
         LOGGER.info("Resumen diario enviado.")
         return {"mode": "daily", "sent": 1}
 
@@ -139,7 +139,7 @@ def run_bot(mode: str, config: Config) -> dict[str, int | str]:
         if state.has_been_notified(key):
             LOGGER.info("Alerta ya notificada, se omite: %s", key)
             continue
-        telegram.send_message(build_alert_message(alert, config.municipio_nombre))
+        notifier.send_message(build_alert_message(alert, config.municipio_nombre))
         state.mark_notified(key)
         sent += 1
         LOGGER.info("Alerta enviada: %s", key)

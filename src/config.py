@@ -13,10 +13,19 @@ class ConfigError(RuntimeError):
 @dataclass(frozen=True)
 class Config:
     aemet_api_key: str
-    telegram_bot_token: str
-    telegram_chat_id: str
     municipio_id: str
     municipio_nombre: str
+    telegram_bot_token: str | None = None
+    telegram_chat_id: str | None = None
+    ntfy_method: str = "auto"
+    notification_methods: tuple[str, ...] = ("telegram",)
+    ntfy_topic: str | None = None
+    ntfy_server: str = "https://ntfy.sh"
+    ntfy_token: str | None = None
+    ntfy_username: str | None = None
+    ntfy_password: str | None = None
+    ntfy_priority: str | None = None
+    ntfy_tags: tuple[str, ...] = ()
     timezone: str = "Europe/Madrid"
     rain_prob_threshold: int = 50
     wind_kmh_threshold: int = 45
@@ -38,8 +47,6 @@ class Config:
 
         required = {
             "AEMET_API_KEY": os.getenv("AEMET_API_KEY"),
-            "TELEGRAM_BOT_TOKEN": os.getenv("TELEGRAM_BOT_TOKEN"),
-            "TELEGRAM_CHAT_ID": os.getenv("TELEGRAM_CHAT_ID"),
             "MUNICIPIO_ID": os.getenv("MUNICIPIO_ID"),
             "MUNICIPIO_NOMBRE": os.getenv("MUNICIPIO_NOMBRE"),
         }
@@ -49,12 +56,33 @@ class Config:
                 "Faltan variables de entorno obligatorias: " + ", ".join(missing)
             )
 
+        telegram_bot_token = _optional_env("TELEGRAM_BOT_TOKEN")
+        telegram_chat_id = _optional_env("TELEGRAM_CHAT_ID")
+        ntfy_topic = _optional_env("NTFY_TOPIC")
+        ntfy_method = (os.getenv("NTFY_METHOD") or "auto").strip().lower()
+        notification_methods = _notification_methods_from_env(
+            ntfy_method,
+            telegram_bot_token=telegram_bot_token,
+            telegram_chat_id=telegram_chat_id,
+            ntfy_topic=ntfy_topic,
+        )
+
         return cls(
             aemet_api_key=required["AEMET_API_KEY"] or "",
-            telegram_bot_token=required["TELEGRAM_BOT_TOKEN"] or "",
-            telegram_chat_id=required["TELEGRAM_CHAT_ID"] or "",
             municipio_id=required["MUNICIPIO_ID"] or "",
             municipio_nombre=required["MUNICIPIO_NOMBRE"] or "",
+            telegram_bot_token=telegram_bot_token,
+            telegram_chat_id=telegram_chat_id,
+            ntfy_method=ntfy_method,
+            notification_methods=notification_methods,
+            ntfy_topic=ntfy_topic,
+            ntfy_server=os.getenv("NTFY_SERVER", "https://ntfy.sh").strip()
+            or "https://ntfy.sh",
+            ntfy_token=_optional_env("NTFY_TOKEN"),
+            ntfy_username=_optional_env("NTFY_USERNAME"),
+            ntfy_password=_optional_env("NTFY_PASSWORD"),
+            ntfy_priority=_optional_env("NTFY_PRIORITY"),
+            ntfy_tags=_csv_env("NTFY_TAGS"),
             timezone=os.getenv("TIMEZONE", "Europe/Madrid"),
             rain_prob_threshold=_int_env("RAIN_PROB_THRESHOLD", 50),
             wind_kmh_threshold=_int_env("WIND_KMH_THRESHOLD", 45),
@@ -76,6 +104,47 @@ class Config:
             google_calendar_names=_csv_env("GOOGLE_CALENDAR_NAMES"),
             calendar_events_max=_int_env("CALENDAR_EVENTS_MAX", 10),
         )
+
+
+def _notification_methods_from_env(
+    method: str,
+    *,
+    telegram_bot_token: str | None,
+    telegram_chat_id: str | None,
+    ntfy_topic: str | None,
+) -> tuple[str, ...]:
+    valid_methods = {"auto", "telegram", "ntfy", "both"}
+    if method not in valid_methods:
+        raise ConfigError(
+            "NTFY_METHOD debe ser uno de estos valores: auto, telegram, ntfy, both"
+        )
+
+    telegram_configured = bool(telegram_bot_token and telegram_chat_id)
+    ntfy_configured = bool(ntfy_topic)
+
+    if method == "auto":
+        methods = []
+        if telegram_configured:
+            methods.append("telegram")
+        if ntfy_configured:
+            methods.append("ntfy")
+        if methods:
+            return tuple(methods)
+        raise ConfigError(
+            "No hay ningun canal de notificacion configurado. Configura "
+            "TELEGRAM_BOT_TOKEN y TELEGRAM_CHAT_ID, NTFY_TOPIC, o NTFY_METHOD."
+        )
+
+    if method in {"telegram", "both"} and not telegram_configured:
+        raise ConfigError(
+            "NTFY_METHOD requiere Telegram, pero faltan TELEGRAM_BOT_TOKEN "
+            "o TELEGRAM_CHAT_ID."
+        )
+    if method in {"ntfy", "both"} and not ntfy_configured:
+        raise ConfigError("NTFY_METHOD requiere Ntfy, pero falta NTFY_TOPIC.")
+    if method == "both":
+        return ("telegram", "ntfy")
+    return (method,)
 
 
 def _int_env(name: str, default: int) -> int:

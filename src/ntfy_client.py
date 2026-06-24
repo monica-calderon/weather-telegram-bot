@@ -38,7 +38,6 @@ class NtfyClient:
         sequence_id = f"weather-{uuid.uuid4().hex}"
         headers = {
             "Title": title,
-            "X-Sequence-ID": sequence_id,
             "Actions": self._delete_action(sequence_id),
         }
         if self.priority:
@@ -54,7 +53,7 @@ class NtfyClient:
 
         try:
             response = self.session.post(
-                self._topic_url(),
+                self._sequence_url(sequence_id),
                 data=_html_to_text(text).encode("utf-8"),
                 headers=headers,
                 auth=auth,
@@ -69,8 +68,11 @@ class NtfyClient:
             return self.topic
         return f"{self.server.rstrip('/')}/{self.topic.lstrip('/')}"
 
+    def _sequence_url(self, sequence_id: str) -> str:
+        return f"{self._topic_url().rstrip('/')}/{sequence_id}"
+
     def _delete_action(self, sequence_id: str) -> str:
-        delete_url = f"{self._topic_url().rstrip('/')}/{sequence_id}/delete"
+        delete_url = f"{self._sequence_url(sequence_id)}/delete"
         return f"http, Eliminar, {delete_url}, method=GET, clear=true"
 
 

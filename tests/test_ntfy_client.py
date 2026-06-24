@@ -17,11 +17,10 @@ def test_ntfy_client_posts_plain_text_message_with_headers(monkeypatch):
 
     assert session.posts == [
         {
-            "url": "https://ntfy.example.com/weather-topic",
+            "url": "https://ntfy.example.com/weather-topic/weather-abc123",
             "data": "Resumen diario\nLluvia & viento".encode("utf-8"),
             "headers": {
                 "Title": "Tiempo",
-                "X-Sequence-ID": "weather-abc123",
                 "Actions": "http, Eliminar, "
                 "https://ntfy.example.com/weather-topic/weather-abc123/delete, "
                 "method=GET, clear=true",

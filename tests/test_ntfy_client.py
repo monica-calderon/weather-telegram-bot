@@ -1,7 +1,8 @@
 from src.ntfy_client import NtfyClient, _html_to_text
 
 
-def test_ntfy_client_posts_plain_text_message_with_headers():
+def test_ntfy_client_posts_plain_text_message_with_headers(monkeypatch):
+    monkeypatch.setattr("src.ntfy_client.uuid.uuid4", lambda: FakeUuid("abc123"))
     client = NtfyClient(
         "weather-topic",
         server="https://ntfy.example.com",
@@ -20,6 +21,10 @@ def test_ntfy_client_posts_plain_text_message_with_headers():
             "data": "Resumen diario\nLluvia & viento".encode("utf-8"),
             "headers": {
                 "Title": "Tiempo",
+                "X-Sequence-ID": "weather-abc123",
+                "Actions": "http, Eliminar, "
+                "https://ntfy.example.com/weather-topic/weather-abc123/delete, "
+                "method=GET, clear=true",
                 "Priority": "high",
                 "Tags": "sun,umbrella",
                 "Authorization": "Bearer secret",
@@ -54,3 +59,8 @@ class FakeSession:
 class FakeResponse:
     def raise_for_status(self):
         return None
+
+
+class FakeUuid:
+    def __init__(self, value):
+        self.hex = value

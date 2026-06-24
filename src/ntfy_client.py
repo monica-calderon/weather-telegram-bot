@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import uuid
 from html import unescape
 
 import requests
@@ -34,7 +35,12 @@ class NtfyClient:
         self.session = requests.Session()
 
     def send_message(self, text: str, *, title: str = "Tiempo") -> None:
-        headers = {"Title": title}
+        sequence_id = f"weather-{uuid.uuid4().hex}"
+        headers = {
+            "Title": title,
+            "X-Sequence-ID": sequence_id,
+            "Actions": self._delete_action(sequence_id),
+        }
         if self.priority:
             headers["Priority"] = self.priority
         if self.tags:
@@ -62,6 +68,10 @@ class NtfyClient:
         if self.topic.startswith(("http://", "https://")):
             return self.topic
         return f"{self.server.rstrip('/')}/{self.topic.lstrip('/')}"
+
+    def _delete_action(self, sequence_id: str) -> str:
+        delete_url = f"{self._topic_url().rstrip('/')}/{sequence_id}/delete"
+        return f"http, Eliminar, {delete_url}, method=GET, clear=true"
 
 
 def _html_to_text(text: str) -> str:

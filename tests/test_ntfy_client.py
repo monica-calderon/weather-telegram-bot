@@ -1,8 +1,7 @@
-from src.ntfy_client import NtfyClient, _html_to_text
+from src.ntfy_client import NtfyClient, _clear_action, _html_to_text
 
 
-def test_ntfy_client_posts_plain_text_message_with_headers(monkeypatch):
-    monkeypatch.setattr("src.ntfy_client.uuid.uuid4", lambda: FakeUuid("abc123"))
+def test_ntfy_client_posts_plain_text_message_with_headers():
     client = NtfyClient(
         "weather-topic",
         server="https://ntfy.example.com",
@@ -17,13 +16,11 @@ def test_ntfy_client_posts_plain_text_message_with_headers(monkeypatch):
 
     assert session.posts == [
         {
-            "url": "https://ntfy.example.com/weather-topic/weather-abc123",
+            "url": "https://ntfy.example.com/weather-topic",
             "data": "Resumen diario\nLluvia & viento".encode("utf-8"),
             "headers": {
                 "Title": "Tiempo",
-                "Actions": "http, Eliminar, "
-                "https://ntfy.example.com/weather-topic/weather-abc123/delete, "
-                "method=GET, clear=true",
+                "Actions": _clear_action(),
                 "Priority": "high",
                 "Tags": "sun,umbrella",
                 "Authorization": "Bearer secret",
@@ -36,6 +33,15 @@ def test_ntfy_client_posts_plain_text_message_with_headers(monkeypatch):
 
 def test_html_to_text_removes_telegram_markup():
     assert _html_to_text("Hola <b>mundo</b> &amp; cielo") == "Hola mundo & cielo"
+
+
+def test_clear_action_does_not_call_remote_delete_endpoint():
+    assert _clear_action() == (
+        "broadcast, Eliminar, "
+        "extras.action=clear_notification, "
+        "clear=true"
+    )
+    assert "/delete" not in _clear_action()
 
 
 class FakeSession:
@@ -58,8 +64,3 @@ class FakeSession:
 class FakeResponse:
     def raise_for_status(self):
         return None
-
-
-class FakeUuid:
-    def __init__(self, value):
-        self.hex = value

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import re
-import uuid
 from html import unescape
 
 import requests
@@ -35,10 +34,9 @@ class NtfyClient:
         self.session = requests.Session()
 
     def send_message(self, text: str, *, title: str = "Tiempo") -> None:
-        sequence_id = f"weather-{uuid.uuid4().hex}"
         headers = {
             "Title": title,
-            "Actions": self._delete_action(sequence_id),
+            "Actions": _clear_action(),
         }
         if self.priority:
             headers["Priority"] = self.priority
@@ -53,7 +51,7 @@ class NtfyClient:
 
         try:
             response = self.session.post(
-                self._sequence_url(sequence_id),
+                self._topic_url(),
                 data=_html_to_text(text).encode("utf-8"),
                 headers=headers,
                 auth=auth,
@@ -68,14 +66,15 @@ class NtfyClient:
             return self.topic
         return f"{self.server.rstrip('/')}/{self.topic.lstrip('/')}"
 
-    def _sequence_url(self, sequence_id: str) -> str:
-        return f"{self._topic_url().rstrip('/')}/{sequence_id}"
-
-    def _delete_action(self, sequence_id: str) -> str:
-        delete_url = f"{self._sequence_url(sequence_id)}/delete"
-        return f"http, Eliminar, {delete_url}, method=GET, clear=true"
-
 
 def _html_to_text(text: str) -> str:
     without_tags = re.sub(r"<[^>]+>", "", text)
     return unescape(without_tags)
+
+
+def _clear_action() -> str:
+    return (
+        "broadcast, Eliminar, "
+        "extras.action=clear_notification, "
+        "clear=true"
+    )

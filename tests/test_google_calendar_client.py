@@ -1,7 +1,11 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from src.google_calendar_client import GoogleCalendarClient, normalize_calendar_event
+from src.google_calendar_client import (
+    GoogleCalendarClient,
+    _build_user_credentials,
+    normalize_calendar_event,
+)
 
 
 def test_normalize_calendar_event_with_time():
@@ -96,6 +100,21 @@ def test_google_calendar_client_does_not_use_calendar_id_as_name():
     )
 
     assert events[0]["calendar"] == ""
+
+
+def test_build_user_credentials_from_installed_client_json():
+    credentials = _build_user_credentials(
+        (
+            '{"installed":{"client_id":"client-id","client_secret":"secret",'
+            '"token_uri":"https://oauth2.googleapis.com/token"}}'
+        ),
+        "refresh-token",
+        ("https://www.googleapis.com/auth/calendar.readonly",),
+    )
+
+    assert credentials.client_id == "client-id"
+    assert credentials.client_secret == "secret"
+    assert credentials.refresh_token == "refresh-token"
 
 
 class FakeCalendarService:

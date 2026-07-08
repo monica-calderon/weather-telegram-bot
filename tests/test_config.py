@@ -10,6 +10,8 @@ OPTIONAL_ENV_VARS = [
     "OPEN_METEO_LATITUDE",
     "OPEN_METEO_LONGITUDE",
     "GOOGLE_SERVICE_ACCOUNT_JSON",
+    "GOOGLE_OAUTH_CLIENT_JSON",
+    "GOOGLE_OAUTH_REFRESH_TOKEN",
     "GOOGLE_CALENDAR_IDS",
     "GOOGLE_CALENDAR_NAMES",
     "CALENDAR_EVENTS_MAX",
@@ -48,6 +50,8 @@ def test_config_defaults_to_madrid_alert_area(monkeypatch):
     assert config.open_meteo_latitude == 40.4818
     assert config.open_meteo_longitude == -3.3643
     assert config.google_service_account_json is None
+    assert config.google_oauth_client_json is None
+    assert config.google_oauth_refresh_token is None
     assert config.google_calendar_ids == ()
     assert config.google_calendar_names == ()
     assert config.calendar_events_max == 10
@@ -93,6 +97,22 @@ def test_config_reads_google_calendar_settings(monkeypatch):
     )
     assert config.google_calendar_names == ("Personal", "Bubu")
     assert config.calendar_events_max == 3
+
+
+def test_config_reads_google_calendar_oauth_settings(monkeypatch):
+    _clear_optional_env(monkeypatch)
+    monkeypatch.setenv("AEMET_API_KEY", "aemet")
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "telegram")
+    monkeypatch.setenv("TELEGRAM_CHAT_ID", "chat")
+    monkeypatch.setenv("MUNICIPIO_ID", "28005")
+    monkeypatch.setenv("MUNICIPIO_NOMBRE", "Alcala")
+    monkeypatch.setenv("GOOGLE_OAUTH_CLIENT_JSON", '{"installed":{"client_id":"id"}}')
+    monkeypatch.setenv("GOOGLE_OAUTH_REFRESH_TOKEN", "refresh-token")
+
+    config = Config.from_env()
+
+    assert config.google_oauth_client_json == '{"installed":{"client_id":"id"}}'
+    assert config.google_oauth_refresh_token == "refresh-token"
 
 
 def test_config_auto_uses_ntfy_when_only_ntfy_is_configured(monkeypatch):

@@ -149,19 +149,23 @@ def run_bot(mode: str, config: Config) -> dict[str, int | str]:
 
 
 def _get_calendar_summary(config: Config, start: datetime) -> dict[str, Any]:
-    if not config.google_service_account_json or not config.google_calendar_ids:
-        if config.google_service_account_json or config.google_calendar_ids:
+    has_calendar_credentials = _has_google_calendar_credentials(config)
+    if not has_calendar_credentials or not config.google_calendar_ids:
+        if has_calendar_credentials or config.google_calendar_ids:
             LOGGER.warning(
-                "Google Calendar incompleto: GOOGLE_SERVICE_ACCOUNT_JSON=%s, "
-                "GOOGLE_CALENDAR_IDS=%s",
-                "configurado" if config.google_service_account_json else "vacio",
+                "Google Calendar incompleto: credenciales=%s, GOOGLE_CALENDAR_IDS=%s",
+                "configuradas" if has_calendar_credentials else "vacias",
                 "configurado" if config.google_calendar_ids else "vacio",
             )
         return {}
 
     end = datetime.combine(start.date(), time.max, tzinfo=start.tzinfo)
     try:
-        client = GoogleCalendarClient(config.google_service_account_json)
+        client = GoogleCalendarClient(
+            config.google_service_account_json,
+            oauth_client_json=config.google_oauth_client_json,
+            oauth_refresh_token=config.google_oauth_refresh_token,
+        )
         calendar_names_by_id = dict(
             zip(config.google_calendar_ids, config.google_calendar_names, strict=False)
         )
@@ -177,6 +181,13 @@ def _get_calendar_summary(config: Config, start: datetime) -> dict[str, Any]:
         return {"calendar_error": True}
 
     return {"calendar_events": events}
+
+
+def _has_google_calendar_credentials(config: Config) -> bool:
+    return bool(
+        config.google_service_account_json
+        or (config.google_oauth_client_json and config.google_oauth_refresh_token)
+    )
 
 
 def _get_current_observation(

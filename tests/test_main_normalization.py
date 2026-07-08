@@ -67,7 +67,7 @@ def test_normalize_official_alerts_from_cap_zip():
 
 def test_calendar_failure_returns_error_flag(monkeypatch):
     class FailingCalendarClient:
-        def __init__(self, service_account_json):
+        def __init__(self, service_account_json, **kwargs):
             pass
 
         def get_events_remaining_today(self, *args, **kwargs):

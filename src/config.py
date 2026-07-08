@@ -37,6 +37,8 @@ class Config:
     open_meteo_latitude: float | None = None
     open_meteo_longitude: float | None = None
     google_service_account_json: str | None = None
+    google_oauth_client_json: str | None = None
+    google_oauth_refresh_token: str | None = None
     google_calendar_ids: tuple[str, ...] = ()
     google_calendar_names: tuple[str, ...] = ()
     calendar_events_max: int = 10
@@ -100,6 +102,8 @@ class Config:
                 "OPEN_METEO_LONGITUDE", required["MUNICIPIO_ID"] or "", "longitude"
             ),
             google_service_account_json=_optional_env("GOOGLE_SERVICE_ACCOUNT_JSON"),
+            google_oauth_client_json=_optional_env("GOOGLE_OAUTH_CLIENT_JSON"),
+            google_oauth_refresh_token=_optional_env("GOOGLE_OAUTH_REFRESH_TOKEN"),
             google_calendar_ids=_csv_env("GOOGLE_CALENDAR_IDS"),
             google_calendar_names=_csv_env("GOOGLE_CALENDAR_NAMES"),
             calendar_events_max=_int_env("CALENDAR_EVENTS_MAX", 10),

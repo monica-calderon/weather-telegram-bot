@@ -4,6 +4,7 @@ import json
 from datetime import datetime
 from typing import Any
 
+from google.oauth2.credentials import Credentials as UserCredentials
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
@@ -15,8 +16,18 @@ class GoogleCalendarClientError(RuntimeError):
 class GoogleCalendarClient:
     SCOPES = ("https://www.googleapis.com/auth/calendar.readonly",)
 
-    def __init__(self, service_account_json: str) -> None:
-        self.service = self._build_service(service_account_json)
+    def __init__(
+        self,
+        service_account_json: str | None = None,
+        *,
+        oauth_client_json: str | None = None,
+        oauth_refresh_token: str | None = None,
+    ) -> None:
+        self.service = self._build_service(
+            service_account_json,
+            oauth_client_json=oauth_client_json,
+            oauth_refresh_token=oauth_refresh_token,
+        )
 
     @classmethod
     def from_service(cls, service: Any) -> "GoogleCalendarClient":
@@ -84,8 +95,26 @@ class GoogleCalendarClient:
         summary = calendar.get("summary") if isinstance(calendar, dict) else None
         return str(summary).strip() if summary else ""
 
-    def _build_service(self, service_account_json: str) -> Any:
+    def _build_service(
+        self,
+        service_account_json: str | None,
+        *,
+        oauth_client_json: str | None = None,
+        oauth_refresh_token: str | None = None,
+    ) -> Any:
         try:
+            if oauth_client_json and oauth_refresh_token:
+                credentials = _build_user_credentials(
+                    oauth_client_json, oauth_refresh_token, self.SCOPES
+                )
+                return build("calendar", "v3", credentials=credentials, cache_discovery=False)
+
+            if not service_account_json:
+                raise ValueError(
+                    "configura GOOGLE_SERVICE_ACCOUNT_JSON o "
+                    "GOOGLE_OAUTH_CLIENT_JSON y GOOGLE_OAUTH_REFRESH_TOKEN"
+                )
+
             info = json.loads(service_account_json)
             credentials = service_account.Credentials.from_service_account_info(
                 info, scopes=self.SCOPES
@@ -95,6 +124,37 @@ class GoogleCalendarClient:
             raise GoogleCalendarClientError(
                 f"No se pudo inicializar Google Calendar: {exc}"
             ) from exc
+
+
+def _build_user_credentials(
+    oauth_client_json: str, refresh_token: str, scopes: tuple[str, ...]
+) -> UserCredentials:
+    info = json.loads(oauth_client_json)
+    client_info = info.get("installed") or info.get("web") or info
+    client_id = client_info.get("client_id")
+    client_secret = client_info.get("client_secret")
+    token_uri = client_info.get("token_uri", "https://oauth2.googleapis.com/token")
+
+    missing = [
+        name
+        for name, value in {
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "refresh_token": refresh_token,
+        }.items()
+        if not value
+    ]
+    if missing:
+        raise ValueError("faltan campos OAuth: " + ", ".join(missing))
+
+    return UserCredentials(
+        token=None,
+        refresh_token=refresh_token,
+        token_uri=token_uri,
+        client_id=client_id,
+        client_secret=client_secret,
+        scopes=scopes,
+    )
 
 
 def normalize_calendar_event(

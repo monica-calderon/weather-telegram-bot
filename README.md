@@ -71,6 +71,8 @@ CURRENT_OBSERVATION_MAX_AGE_MINUTES=150
 OPEN_METEO_LATITUDE=40.4818
 OPEN_METEO_LONGITUDE=-3.3643
 GOOGLE_SERVICE_ACCOUNT_JSON={"type":"service_account","project_id":"..."}
+GOOGLE_OAUTH_CLIENT_JSON={"installed":{"client_id":"...","client_secret":"..."}}
+GOOGLE_OAUTH_REFRESH_TOKEN=tu_refresh_token
 GOOGLE_CALENDAR_IDS=calendario1@gmail.com,abc123@group.calendar.google.com
 GOOGLE_CALENDAR_NAMES=Personal,Bubu
 CALENDAR_EVENTS_MAX=10
@@ -169,6 +171,8 @@ Configura estos `Secrets` en tu repositorio:
 - `NTFY_TOKEN` opcional si tu servidor Ntfy requiere bearer token.
 - `NTFY_USERNAME` y `NTFY_PASSWORD` opcionales si tu servidor Ntfy requiere basic auth.
 - `GOOGLE_SERVICE_ACCOUNT_JSON` opcional, JSON completo de la service account de Google.
+- `GOOGLE_OAUTH_CLIENT_JSON` opcional, JSON del cliente OAuth si necesitas leer calendarios privados compartidos con tu cuenta.
+- `GOOGLE_OAUTH_REFRESH_TOKEN` opcional, refresh token OAuth de tu cuenta de Google.
 - `GOOGLE_CALENDAR_IDS` opcional si prefieres guardar tambien los IDs como secreto.
 - `GOOGLE_CALENDAR_NAMES` opcional si prefieres guardar tambien los nombres visibles como secreto.
 - `CALENDAR_EVENTS_MAX` opcional si prefieres guardarlo como secreto.
@@ -203,9 +207,18 @@ Las notificaciones programadas quedan delegadas a cron-job.org. GitHub Actions e
 
 ## Google Calendar
 
-La integracion usa una service account de Google Cloud. Es la opcion mas estable para GitHub Actions porque no requiere iniciar sesion manualmente ni renovar tokens OAuth.
+La integracion acepta dos modos:
 
-### 1. Crear credenciales en Google Cloud
+- Service account: recomendado si puedes compartir cada calendario con el email de la service account.
+- OAuth de usuario: recomendado si el calendario es privado, te lo han compartido a tu cuenta de Google y no puedes compartirlo con la service account.
+
+Si configuras ambos, el bot usa OAuth de usuario porque permite ver los calendarios a los que tiene acceso tu cuenta.
+
+### Opcion A. Service account
+
+La service account es la opcion mas estable para GitHub Actions porque no requiere iniciar sesion manualmente ni renovar tokens OAuth.
+
+#### 1. Crear credenciales en Google Cloud
 
 1. Entra en [Google Cloud Console](https://console.cloud.google.com/).
 2. Crea o selecciona un proyecto.
@@ -220,7 +233,7 @@ La integracion usa una service account de Google Cloud. Es la opcion mas estable
 
 Ese archivo JSON completo sera el valor de `GOOGLE_SERVICE_ACCOUNT_JSON`. No lo subas al repositorio.
 
-### 2. Compartir calendarios con la service account
+#### 2. Compartir calendarios con la service account
 
 1. Abre el JSON descargado.
 2. Copia el valor de `client_email`; tendra forma parecida a:
@@ -236,7 +249,7 @@ weather-telegram-bot@tu-proyecto.iam.gserviceaccount.com
 7. Dale permiso `Ver todos los detalles del evento`.
 8. Repite el proceso para cada calendario que quieras incluir.
 
-### 3. Obtener IDs de calendario
+#### 3. Obtener IDs de calendario
 
 Para cada calendario:
 
@@ -264,7 +277,7 @@ GOOGLE_CALENDAR_IDS=tu-correo@gmail.com,abc123@group.calendar.google.com
 GOOGLE_CALENDAR_NAMES=Personal,Bubu
 ```
 
-### 4. Guardar en GitHub
+#### 4. Guardar en GitHub
 
 En tu repositorio de GitHub:
 
@@ -299,7 +312,7 @@ CALENDAR_EVENTS_MAX=10
 
 Tambien puedes guardar `GOOGLE_CALENDAR_IDS`, `GOOGLE_CALENDAR_NAMES` y `CALENDAR_EVENTS_MAX` como `Secrets`; el workflow acepta ambas opciones. Si existen como Variable y como Secret, se usa primero la Variable.
 
-### 5. Configurar en local
+#### 5. Configurar en local
 
 En `.env`, puedes usar las mismas variables:
 
@@ -313,6 +326,76 @@ CALENDAR_EVENTS_MAX=10
 Si el JSON te da problemas en `.env` por comillas o saltos de linea, prueba primero desde GitHub Actions, donde el secret acepta el JSON completo mejor. En local tambien puedes pegarlo en una sola linea.
 
 Si Google Calendar falla, el bot envia igualmente el resumen meteorologico y añade una nota indicando que no se pudieron obtener eventos.
+
+### Opcion B. OAuth para un calendario privado compartido contigo
+
+Usa esta opcion cuando el calendario no es publico y aparece en tu Google Calendar porque otra persona te lo ha compartido, pero no puedes anadir la service account como invitada del calendario.
+
+#### 1. Crear cliente OAuth
+
+1. Entra en [Google Cloud Console](https://console.cloud.google.com/).
+2. Usa el mismo proyecto donde habilitaste `Google Calendar API`, o crea uno.
+3. Ve a `APIs y servicios` -> `Pantalla de consentimiento de OAuth`.
+4. Configura la pantalla en modo `Externo` o `Interno`, segun tu cuenta. Para uso personal puede quedar en pruebas.
+5. Anade tu email como usuario de prueba si la app esta en pruebas.
+6. Ve a `APIs y servicios` -> `Credenciales`.
+7. Pulsa `Crear credenciales` -> `ID de cliente de OAuth`.
+8. Tipo de aplicacion: `Aplicacion de escritorio`.
+9. Descarga el JSON. Ese contenido sera `GOOGLE_OAUTH_CLIENT_JSON`.
+
+#### 2. Obtener refresh token automaticamente
+
+1. Copia el JSON OAuth descargado a la raiz del proyecto. El nombre puede ser el que descarga Google, por ejemplo:
+
+```text
+client_secret_abc123.apps.googleusercontent.com.json
+```
+
+2. Ejecuta:
+
+```bat
+refresh_token_weekly.bat
+```
+
+El script instalara `google-auth-oauthlib` si hace falta, abrira el navegador, te pedira autorizar la cuenta de Google que tiene acceso al calendario compartido y guardara estos valores en `.env`:
+
+```text
+GOOGLE_OAUTH_CLIENT_JSON
+GOOGLE_OAUTH_REFRESH_TOKEN
+```
+
+Tambien guardara una copia historica del refresh token en `refresh_tokens.txt`. Tanto `client_secret*.json` como `refresh_tokens.txt` estan ignorados por Git.
+
+Si prefieres ejecutarlo manualmente:
+
+```bash
+python get_refresh_token.py --write-env --client-secrets client_secret_abc123.apps.googleusercontent.com.json
+```
+
+#### 3. Guardar en GitHub
+
+En `Settings` -> `Secrets and variables` -> `Actions`, crea estos `Secrets`:
+
+```text
+GOOGLE_OAUTH_CLIENT_JSON
+GOOGLE_OAUTH_REFRESH_TOKEN
+```
+
+Despues configura `GOOGLE_CALENDAR_IDS`, `GOOGLE_CALENDAR_NAMES` y `CALENDAR_EVENTS_MAX` igual que en la opcion A.
+
+#### 4. Configurar en local
+
+En `.env`:
+
+```env
+GOOGLE_OAUTH_CLIENT_JSON={"installed":{"client_id":"...","client_secret":"...","token_uri":"https://oauth2.googleapis.com/token"}}
+GOOGLE_OAUTH_REFRESH_TOKEN=tu_refresh_token
+GOOGLE_CALENDAR_IDS=abc123@group.calendar.google.com
+GOOGLE_CALENDAR_NAMES=Compartido
+CALENDAR_EVENTS_MAX=10
+```
+
+No subas ni el JSON OAuth ni el refresh token al repositorio.
 
 ## cron-job.org + GitHub Actions
 

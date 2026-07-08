@@ -177,6 +177,8 @@ Configura estos `Secrets` en tu repositorio:
 - `GOOGLE_CALENDAR_NAMES` opcional si prefieres guardar tambien los nombres visibles como secreto.
 - `CALENDAR_EVENTS_MAX` opcional si prefieres guardarlo como secreto.
 
+`GOOGLE_CALENDAR_IDS` y `GOOGLE_CALENDAR_NAMES` pueden estar en `Secrets` o en `Variables`; el workflow acepta ambas opciones.
+
 Configura estas `Variables` del repositorio:
 
 - `MUNICIPIO_ID`
@@ -331,7 +333,7 @@ Si Google Calendar falla, el bot envia igualmente el resumen meteorologico y añ
 
 Usa esta opcion cuando el calendario no es publico y aparece en tu Google Calendar porque otra persona te lo ha compartido, pero no puedes anadir la service account como invitada del calendario.
 
-#### 1. Crear cliente OAuth
+#### 1. Crear cliente OAuth para OAuth Playground
 
 1. Entra en [Google Cloud Console](https://console.cloud.google.com/).
 2. Usa el mismo proyecto donde habilitaste `Google Calendar API`, o crea uno.
@@ -340,17 +342,42 @@ Usa esta opcion cuando el calendario no es publico y aparece en tu Google Calend
 5. Anade tu email como usuario de prueba si la app esta en pruebas.
 6. Ve a `APIs y servicios` -> `Credenciales`.
 7. Pulsa `Crear credenciales` -> `ID de cliente de OAuth`.
-8. Tipo de aplicacion: `Aplicacion de escritorio`.
-9. Descarga el JSON. Ese contenido sera `GOOGLE_OAUTH_CLIENT_JSON`.
+8. Tipo de aplicacion: `Aplicacion web`.
+9. En `URIs de redireccion autorizados`, anade:
+
+```text
+https://developers.google.com/oauthplayground
+```
+
+10. Descarga el JSON. Ese contenido sera `GOOGLE_OAUTH_CLIENT_JSON`.
+
+No uses un cliente `Aplicacion de escritorio` con OAuth Playground; Playground necesita que el redirect URI anterior este autorizado en un cliente web.
 
 #### 2. Obtener refresh token
 
-Genera el refresh token fuera del repositorio, por ejemplo con un helper local ignorado por Git o con OAuth Playground usando el cliente OAuth de escritorio. Necesitas obtener estos dos valores:
+1. Abre [OAuth 2.0 Playground](https://developers.google.com/oauthplayground/).
+2. Pulsa el icono de ajustes.
+3. Marca `Use your own OAuth credentials`.
+4. Pega el `client_id` y `client_secret` del JSON OAuth web.
+5. En scopes, usa:
+
+```text
+https://www.googleapis.com/auth/calendar.readonly
+```
+
+6. Pulsa `Authorize APIs`.
+7. Entra con la cuenta de Google que ve el calendario privado compartido.
+8. Pulsa `Exchange authorization code for tokens`.
+9. Copia el `refresh_token`.
+
+Necesitas guardar estos dos valores:
 
 ```text
 GOOGLE_OAUTH_CLIENT_JSON
 GOOGLE_OAUTH_REFRESH_TOKEN
 ```
+
+Si Google devuelve `unauthorized_client`, normalmente el `refresh_token` se genero con otro `client_id/client_secret`, el cliente OAuth se cambio o borro, o el email no esta anadido como usuario de prueba en la pantalla de consentimiento.
 
 Los archivos locales `client_secret*.json`, `get_refresh_token.py`, `refresh_token_weekly.bat`, `refresh_token_weekly.ps1` y `refresh_tokens.txt` estan ignorados por Git para evitar subir credenciales o helpers locales.
 
@@ -364,6 +391,8 @@ GOOGLE_OAUTH_REFRESH_TOKEN
 ```
 
 Despues configura `GOOGLE_CALENDAR_IDS`, `GOOGLE_CALENDAR_NAMES` y `CALENDAR_EVENTS_MAX` igual que en la opcion A.
+
+Para un calendario privado compartido contigo, puedes borrar `GOOGLE_SERVICE_ACCOUNT_JSON` si no lo usas. La service account no podra leer ese calendario salvo que el propietario tambien lo comparta con el `client_email` de la service account.
 
 #### 4. Configurar en local
 

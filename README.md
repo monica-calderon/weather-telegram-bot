@@ -343,34 +343,16 @@ Usa esta opcion cuando el calendario no es publico y aparece en tu Google Calend
 8. Tipo de aplicacion: `Aplicacion de escritorio`.
 9. Descarga el JSON. Ese contenido sera `GOOGLE_OAUTH_CLIENT_JSON`.
 
-#### 2. Obtener refresh token automaticamente
+#### 2. Obtener refresh token
 
-1. Copia el JSON OAuth descargado a la raiz del proyecto. El nombre puede ser el que descarga Google, por ejemplo:
-
-```text
-client_secret_abc123.apps.googleusercontent.com.json
-```
-
-2. Ejecuta:
-
-```bat
-refresh_token_weekly.bat
-```
-
-El script instalara `google-auth-oauthlib` si hace falta, abrira el navegador, te pedira autorizar la cuenta de Google que tiene acceso al calendario compartido y guardara estos valores en `.env`:
+Genera el refresh token fuera del repositorio, por ejemplo con un helper local ignorado por Git o con OAuth Playground usando el cliente OAuth de escritorio. Necesitas obtener estos dos valores:
 
 ```text
 GOOGLE_OAUTH_CLIENT_JSON
 GOOGLE_OAUTH_REFRESH_TOKEN
 ```
 
-Tambien guardara una copia historica del refresh token en `refresh_tokens.txt`. Tanto `client_secret*.json` como `refresh_tokens.txt` estan ignorados por Git.
-
-Si prefieres ejecutarlo manualmente:
-
-```bash
-python get_refresh_token.py --write-env --client-secrets client_secret_abc123.apps.googleusercontent.com.json
-```
+Los archivos locales `client_secret*.json`, `get_refresh_token.py`, `refresh_token_weekly.bat`, `refresh_token_weekly.ps1` y `refresh_tokens.txt` estan ignorados por Git para evitar subir credenciales o helpers locales.
 
 #### 3. Guardar en GitHub
 

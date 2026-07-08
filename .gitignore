@@ -9,3 +9,6 @@ venv/
 .pytest-tmp/
 client_secret*.json
 refresh_tokens.txt
+get_refresh_token.py
+refresh_token_weekly.bat
+refresh_token_weekly.ps1

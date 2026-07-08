@@ -160,27 +160,74 @@ def _get_calendar_summary(config: Config, start: datetime) -> dict[str, Any]:
         return {}
 
     end = datetime.combine(start.date(), time.max, tzinfo=start.tzinfo)
-    try:
-        client = GoogleCalendarClient(
-            config.google_service_account_json,
-            oauth_client_json=config.google_oauth_client_json,
-            oauth_refresh_token=config.google_oauth_refresh_token,
-        )
-        calendar_names_by_id = dict(
-            zip(config.google_calendar_ids, config.google_calendar_names, strict=False)
-        )
-        events = client.get_events_remaining_today(
-            config.google_calendar_ids,
-            start,
-            end,
-            max_results=config.calendar_events_max,
-            calendar_names_by_id=calendar_names_by_id,
-        )
-    except GoogleCalendarClientError as exc:
-        LOGGER.warning("No se pudieron obtener eventos de Google Calendar: %s", exc)
-        return {"calendar_error": True}
+    calendar_names_by_id = dict(
+        zip(config.google_calendar_ids, config.google_calendar_names, strict=False)
+    )
+    errors = []
+    clients = _google_calendar_client_configs(config)
 
-    return {"calendar_events": events}
+    for client_name, client_kwargs in clients:
+        try:
+            client = GoogleCalendarClient(**client_kwargs)
+            events = client.get_events_remaining_today(
+                config.google_calendar_ids,
+                start,
+                end,
+                max_results=config.calendar_events_max,
+                calendar_names_by_id=calendar_names_by_id,
+            )
+            if errors:
+                LOGGER.info(
+                    "Google Calendar funciono con %s tras fallar otro metodo.",
+                    client_name,
+                )
+            return {"calendar_events": events}
+        except GoogleCalendarClientError as exc:
+            errors.append(f"{client_name}: {exc}")
+            if len(errors) < len(clients):
+                LOGGER.warning(
+                    "Google Calendar fallo con %s; se probara otro metodo: %s",
+                    client_name,
+                    exc,
+                )
+                continue
+            LOGGER.warning(
+                "No se pudieron obtener eventos de Google Calendar: %s",
+                "; ".join(errors),
+            )
+            return {"calendar_error": True}
+
+    return {}
+
+
+def _google_calendar_client_configs(config: Config) -> list[tuple[str, dict[str, str | None]]]:
+    clients: list[tuple[str, dict[str, str | None]]] = []
+
+    if config.google_oauth_client_json and config.google_oauth_refresh_token:
+        clients.append(
+            (
+                "OAuth",
+                {
+                    "service_account_json": None,
+                    "oauth_client_json": config.google_oauth_client_json,
+                    "oauth_refresh_token": config.google_oauth_refresh_token,
+                },
+            )
+        )
+
+    if config.google_service_account_json:
+        clients.append(
+            (
+                "service account",
+                {
+                    "service_account_json": config.google_service_account_json,
+                    "oauth_client_json": None,
+                    "oauth_refresh_token": None,
+                },
+            )
+        )
+
+    return clients
 
 
 def _has_google_calendar_credentials(config: Config) -> bool:

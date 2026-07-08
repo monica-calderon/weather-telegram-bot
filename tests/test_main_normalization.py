@@ -91,6 +91,40 @@ def test_calendar_failure_returns_error_flag(monkeypatch):
     assert result == {"calendar_error": True}
 
 
+def test_calendar_summary_falls_back_to_service_account_when_oauth_fails(monkeypatch):
+    class FallbackCalendarClient:
+        def __init__(self, service_account_json, **kwargs):
+            self.uses_oauth = bool(kwargs.get("oauth_refresh_token"))
+
+        def get_events_remaining_today(self, *args, **kwargs):
+            if self.uses_oauth:
+                raise GoogleCalendarClientError("unauthorized_client: Unauthorized")
+            return [{"time": "18:30", "title": "Dentista", "sort_key": "2026-05-27T18:30"}]
+
+    monkeypatch.setattr("src.main.GoogleCalendarClient", FallbackCalendarClient)
+
+    result = _get_calendar_summary(
+        Config(
+            aemet_api_key="aemet",
+            telegram_bot_token="telegram",
+            telegram_chat_id="chat",
+            municipio_id="28005",
+            municipio_nombre="Alcala",
+            google_service_account_json='{"type":"service_account"}',
+            google_oauth_client_json='{"installed":{"client_id":"id"}}',
+            google_oauth_refresh_token="bad-refresh-token",
+            google_calendar_ids=("calendar@example.com",),
+        ),
+        datetime(2026, 5, 27, 9, 0),
+    )
+
+    assert result == {
+        "calendar_events": [
+            {"time": "18:30", "title": "Dentista", "sort_key": "2026-05-27T18:30"}
+        ]
+    }
+
+
 def test_calendar_summary_skips_when_calendar_ids_are_missing():
     result = _get_calendar_summary(
         Config(

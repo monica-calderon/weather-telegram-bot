@@ -173973,12 +173973,12 @@
     "cache_date": "2026-07-28"
   },
   "current-observation:3170Y": {
-    "fetched_at": "2026-07-27T22:01:32.793442+00:00",
+    "fetched_at": "2026-07-28T10:01:02.607881+00:00",
     "value": {
-      "current_temp": 29.3,
-      "current_temp_time": "22:00",
+      "current_temp": 25.1,
+      "current_temp_time": "10:00",
       "current_temp_station": "ALCALA DE HENARES-ENCÍN",
-      "current_temp_observed_at": "2026-07-27T22:00:00+02:00"
+      "current_temp_observed_at": "2026-07-28T10:00:00+02:00"
     }
   }
 }

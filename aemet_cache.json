@@ -173931,9 +173931,9 @@
     "cache_date": "2026-05-27"
   },
   "official-alerts:72": {
-    "fetched_at": "2026-09-25T22:00:55.951460+00:00",
+    "fetched_at": "2026-09-26T22:00:58.234008+00:00",
     "value": [],
-    "cache_date": "2026-09-26"
+    "cache_date": "2026-09-27"
   },
   "current-observation:alcala de henares": {
     "fetched_at": "2026-05-27T07:11:43.680398+00:00",
@@ -173973,12 +173973,12 @@
     "cache_date": "2026-09-26"
   },
   "current-observation:3170Y": {
-    "fetched_at": "2026-09-26T10:01:31.404651+00:00",
+    "fetched_at": "2026-09-26T22:01:00.701554+00:00",
     "value": {
-      "current_temp": 18.5,
-      "current_temp_time": "10:00",
+      "current_temp": 21.9,
+      "current_temp_time": "22:00",
       "current_temp_station": "ALCALA DE HENARES-ENCÍN",
-      "current_temp_observed_at": "2026-09-26T10:00:00+02:00"
+      "current_temp_observed_at": "2026-09-26T22:00:00+02:00"
     }
   }
 }

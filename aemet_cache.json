@@ -173931,9 +173931,9 @@
     "cache_date": "2026-05-27"
   },
   "official-alerts:72": {
-    "fetched_at": "2026-10-03T22:00:55.771979+00:00",
+    "fetched_at": "2026-10-04T22:01:06.215427+00:00",
     "value": [],
-    "cache_date": "2026-10-04"
+    "cache_date": "2026-10-05"
   },
   "current-observation:alcala de henares": {
     "fetched_at": "2026-05-27T07:11:43.680398+00:00",
@@ -173944,7 +173944,7 @@
     }
   },
   "forecast-summary-v2:28005": {
-    "fetched_at": "2026-10-04T10:01:27.966483+00:00",
+    "fetched_at": "2026-10-04T22:01:04.048444+00:00",
     "value": {
       "municipio_nombre": "Alcalá de Henares",
       "date": "2026-10-04T00:00:00",
@@ -173953,32 +173953,32 @@
       "hourly_temperatures": [
         {
           "periodo": "06",
-          "value": 16
+          "value": 0
         },
         {
           "periodo": "12",
-          "value": 22
+          "value": 0
         },
         {
           "periodo": "18",
-          "value": 18
+          "value": 19
         }
       ],
-      "rain_probability": 100,
-      "rain_period": "12-24",
-      "wind_kmh": 5,
+      "rain_probability": 55,
+      "rain_period": "18-24",
+      "wind_kmh": 10,
       "wind_period": "18-24",
-      "sky_status": "Muy nuboso con tormenta"
+      "sky_status": "Intervalos nubosos con lluvia escasa"
     },
-    "cache_date": "2026-10-04"
+    "cache_date": "2026-10-05"
   },
   "current-observation:3170Y": {
-    "fetched_at": "2026-10-04T10:01:29.064561+00:00",
+    "fetched_at": "2026-10-04T22:01:07.677213+00:00",
     "value": {
       "current_temp": 17.2,
-      "current_temp_time": "10:00",
+      "current_temp_time": "22:00",
       "current_temp_station": "ALCALA DE HENARES-ENCÍN",
-      "current_temp_observed_at": "2026-10-04T10:00:00+02:00"
+      "current_temp_observed_at": "2026-10-04T22:00:00+02:00"
     }
   }
 }

@@ -173931,9 +173931,9 @@
     "cache_date": "2026-05-27"
   },
   "official-alerts:72": {
-    "fetched_at": "2026-11-07T23:01:10.345680+00:00",
+    "fetched_at": "2026-11-08T23:01:06.119272+00:00",
     "value": [],
-    "cache_date": "2026-11-08"
+    "cache_date": "2026-11-09"
   },
   "current-observation:alcala de henares": {
     "fetched_at": "2026-05-27T07:11:43.680398+00:00",
@@ -173944,12 +173944,12 @@
     }
   },
   "forecast-summary-v2:28005": {
-    "fetched_at": "2026-11-07T23:01:05.646536+00:00",
+    "fetched_at": "2026-11-08T23:01:03.548060+00:00",
     "value": {
       "municipio_nombre": "Alcalá de Henares",
-      "date": "2026-11-07T00:00:00",
+      "date": "2026-11-08T00:00:00",
       "max_temp": 19,
-      "min_temp": 5,
+      "min_temp": 4,
       "hourly_temperatures": [
         {
           "periodo": "06",
@@ -173964,13 +173964,13 @@
           "value": 15
         }
       ],
-      "rain_probability": 0,
-      "rain_period": "00-24",
-      "wind_kmh": 10,
+      "rain_probability": 50,
+      "rain_period": "18-24",
+      "wind_kmh": 25,
       "wind_period": "18-24",
-      "sky_status": "Nubes altas"
+      "sky_status": "Cubierto con lluvia escasa"
     },
-    "cache_date": "2026-11-08"
+    "cache_date": "2026-11-09"
   },
   "current-observation:3170Y": {
     "fetched_at": "2026-10-24T22:01:03.282977+00:00",
